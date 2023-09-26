@@ -21,6 +21,7 @@ function gradmap(GUI_par, ...               % premenna ktora sa vyuziva na prepi
         if numel(check_open_window)>0
            fprintf('Okno uz otvorene, zatvaram otvorene okno \n')
            close all
+           
         else
 % open GUI
     % Main window
@@ -49,7 +50,7 @@ function gradmap(GUI_par, ...               % premenna ktora sa vyuziva na prepi
                     'tag','push_input_path','Callback','gradmap input_path','FontName','Trebuchet MS');
     
             % Vypis nazvu vybraneho suboru
-            uicontrol(p1,'Units','normalized', 'Position',[0.32 0.6 0.45 0.25],...
+            uicontrol(p1,'Units','normalized', 'Position',[0.32 0.6 0.48 0.25],...
                 'backgroundcolor',[R1 G1 B1],'tag','show_local_path',...
                 'Style','Text','string','','FontName','Trebuchet MS','FontSize',8);
     
@@ -85,7 +86,11 @@ function gradmap(GUI_par, ...               % premenna ktora sa vyuziva na prepi
                         'Style','Pushbutton','units','characters',...
                         'string','vybrat subor','FontName','Trebuchet MS','UserData','[]',...
                         'tag','push_report_file_name','Callback','gradmap report_filename');
-    
+            % Vypis nazvu vybraneho suboru
+            uicontrol(p2,'Units','normalized', 'Position',[0.32 0.5 0.48 0.25],...
+                'backgroundcolor',[R1 G1 B1],'tag','show_report_path',...
+                'Style','Text','string','','FontName','Trebuchet MS','FontSize',8);
+
             % Tlacidlo pre ulozenie grafickych vystupov spracovania
             uicontrol(p2,'Units','normalized', 'Position',[0.77 0.19 0.09 0.2],...
                         'BackgroundColor',[R1 G1 B1],...
@@ -125,19 +130,20 @@ function gradmap(GUI_par, ...               % premenna ktora sa vyuziva na prepi
             % klinutie na ikonku vystupnych dat ---------------------------------
             case 'report_filename'
                 [outname,outpath] = uiputfile('*.*');
-                        if outname == 0 & outpath == 0 
-                                        fprintf('Vytvorenie suboru pre zapis reportu. \n')
-                                        outfile = fullfile(pwd,'output');
-                                        clear outpath
-                                        outname = 'output';
-                        elseif outname == 0
-                                        outname = 'output';
-                                        outfile = fullfile(outpath,outname);
-                        else
-                                        outfile = fullfile(outpath,outname);
-                        end
+                
+                outfile = fullfile(outpath,outname);
+                prip = outfile(end-3:end);
 
-                                    set(findobj('tag','push_report_file_name'),'userdata',outfile);
+                if prip == '.txt'
+                   outfile = outfile(1:end-4);
+                   outname = outname(1:end-4);
+                else
+                    outfile = outfile;
+                end
+
+                set(findobj('tag','show_report_path'),'string',strcat(outname,'.txt'), 'FontSize',8)
+
+                set(findobj('tag','push_report_file_name'),'userdata',outfile);
 
             % klinutie na zaciatok vypoctu ---------------------------------
             case 'Run' 
@@ -182,173 +188,173 @@ function gradmap(GUI_par, ...               % premenna ktora sa vyuziva na prepi
                 uniquepoints = string(unique(points,'stable'));
                 if length(uniquepoints)>2
                     fprintf('Subor obsahuje merania z viac ako dvoch bodov - skontroluj subor s meraniami ci neobsahuje chybny popis bodu. \n')
-                else
-                end
+                elseif length(uniquepoints) == 2
+                    % casova numericka informacia - dn (datenum)
+                    dn = filedata{13};
+                    % casova informacia - dtime (datetime)
+                    dtime = datetime(dn,'ConvertFrom','datenum');
+                    
+                    % informacia o vyske senzora v cm - prevedena na metre. Senzor sa nachadza
+                    % 21.1 cm pod hornou hranou gravimetra, ktorej vyska sa uvadza v zapisniku.
+                    % Vyska hornej hrany sa uvadza nad znackou bodu.
+    
+                    if input_units_option == 1
+                        vyska = (filedata{3} - 21.1 )/100;
+                    elseif input_units_option == 2
+                        vyska = (filedata{3} - 0.211 );
+                    end
+                    % merane gravimetricke data - prevedenie na mikrogaly.
+                    grav = filedata{4}*1000;
+                   
+                    % Metoda najm. stvorcov
+                    n0 = length(points); % pocet riadkov matice planu
+                    k = length(uniquepoints); % pocet meranych bodov
+                    
+                    % stupen polynomu zaciatocny - spracovanim sa urci vysledny stupen polynomu
+                    % ale startovaci je kvadraticky
+                    stupen_polynomu = 2;
+                    
+                    % prva cast matice planu suvisiaca s meranymi bodmi
+                    for i = 1:k
+                    ind = find(points == uniquepoints(i));
+                        A(ind,i) = 1; A(~ind,i) = 0;
+                        % urcenie priemernej vysky urovni - predpoklad je ze vyska urovni sa
+                        % nemeni, ale +- 1 mm.
+                        vyska_urovni(i,1) = mean(vyska(ind));
+                    end
+                    % cast matica planu suvisiaca s chodom - zohladnuje casovu informacia merani
+                    A(:,k+1) = 1;
+                    for i = k+2:k+1+stupen_polynomu;
+                       A(:,i) = (dn - dn(1)).^(i -(k+1));
+                    end
+                    % regularizacia matice planu odstranenim prveho merania - fixovanie
+                    % merani na zaciatocnu (spodnu) uroven.
+                    A(:,1)= [];
+                    
+                    % vytvorenie kovariancnej matice pouzitim meranych presnosti a ich
+                    % vzajomnych vah.
+                    ERR = filedata{5}*1000;
+                    % vahy
+                    weight = mean(ERR)./ERR;
+                    % vahova matica
+                    P = diag(weight);
+                    % kofaktorova matica a kovariancna matica
+                    Q = P^-1; C = (SD00^2)*Q;
+                    
+                    % Metoda najmensich stvorcov odhad
+                    odhadnute_parametre = (A'/C*A)\A'/C*grav;
+                    % opravy meranych hodnot
+                    v = (A*odhadnute_parametre) - grav;
+                    % odhad jednotkovej strednej chyby
+                    SD0 = sqrt((v'*inv(C)*v)/(n0-k-2-stupen_polynomu));
+                    % kovariancna matica odhadnutych parametrov
+                    C_theta = (SD0^2)*inv(A'*inv(C)*A);
+                    % stredne chyby odhadnutych parametrov
+                    SD_theta = sqrt(diag(C_theta));
+    
+                    % koeficienty chodu
+                    drift_koef = odhadnute_parametre(end-stupen_polynomu:end);
+                    % cast matice planu urcujuca chod
+                    AA = A(:,end-stupen_polynomu:end);
+                    % transportacny drift
+                    res_drift = AA*drift_koef;
+                    % test odhadu pridanim oprav
+                    test = res_drift + v;
+                    
+                    %%  testovanie odlahlych merani
+                    % testovacia statistika urcena ako 3 nasobok stadnardnej odchylky pre hladinu
+                    % vynamnosti 0.05.
+                    % index odlahlych merani.
+                    index_e = find(abs(v)>=SD00*3);
+                    
+                    % statisticky test parametrov druheho linearneho modelu
+                    testovacia_statistika = odhadnute_parametre(end)/SD_theta(end);
+                    % urcenie vyznamnosti kvadratickeho chodu
+                    if abs(testovacia_statistika) < 2 % honota 2 zodpoveda minimalnemu poctu merani 30 ~ 35, ktory je zabezpeceny hodinovym meranim
+                        stupen_polynomu_novy = 1;
+                        fprintf('použitie linearnej aproximácie chodu gravimetra na základe štatistického testu\n')
+                    else
+                        stupen_polynomu_novy = 2;
+                        fprintf('použitie kvadratickej aproximácie chodu gravimetra na základe štatistického testu\n')
+                    end
+                    
+                    %% outlier removal
+                    grav(index_e) = [];
+                    dn(index_e) = [];
+                    points(index_e) = [];
+                    ERR(index_e) = [];
+                    
+                    n = length(points);
+                    clear A AA C Q v C_theta
+    
+                    %% reprocessing without outliers
+                    for i = 1:k;
+                    ind = find(points == uniquepoints(i));
+                        A(ind,i) = 1; A(~ind,i) = 0;
+                    end
+                    % the not so useful part of Jacobi's matrix
+                    A(:,k+1) = 1;
+                    for i = k+2:k+1+stupen_polynomu_novy;
+                       A(:,i) = (dn - dn(1)).^(i -(k+1));
+                    end
+                    
+                    A(:,1)=[];
+                    
+                    weight= mean(ERR)./ERR;
+                    P = diag(weight);
+                    Q = P^-1; C = (SD00^2)*Q;
+                    
+                    odhadnute_parametre_nove = (A'/C*A)\A'/C*grav;
+                    v = (A*odhadnute_parametre_nove) - grav;
+                    SD0_new = sqrt((v'*inv(C)*v)/(n-k-2-stupen_polynomu_novy));           
+                    C_theta = (SD0_new^2)*inv(A'*inv(C)*A);                   
+                    SD_theta_new = sqrt(diag(C_theta));
+                    
+                    drift_koef2 = odhadnute_parametre_nove(end-stupen_polynomu_novy:end);
+                    AA = A(:,end-stupen_polynomu_novy:end);
+                    res_drift_novy = AA*drift_koef2;
+                    
+                    % casova informacia - dtime (datetime)
+                    dtime_new = datetime(dn,'ConvertFrom','datenum');
+                    
+                    Wzz(1) = odhadnute_parametre(1)/abs(vyska_urovni(2) - vyska_urovni(1));
+                    Wzz(2) = odhadnute_parametre_nove(1)/abs(vyska_urovni(2) - vyska_urovni(1));
+                    sigma_Wzz(1) = sqrt((SD_theta(1)/abs(vyska_urovni(2) - vyska_urovni(1)))^2);
+                    sigma_Wzz(2) = sqrt((SD_theta_new(1)/abs(vyska_urovni(2) - vyska_urovni(1)))^2);
+                    priemerna_vyska = (vyska_urovni(2) + vyska_urovni(1))/2;
+    
+                    % vystupna cast - vytvorenie suboru
+                    
+                    % hlavicka s dodatocnymi informaciami
+                    line1 = ['Nazov suboru pouziteho v spracovani: ', input_file];
+                    line2 = ['Merany bod: ',pad(num2str(uniquepoints(1,1),'%9.4f'),10)];
+                    line3 = ['Datum merania: ',datestr(dtime(1))];
+                    line4 = ['Pocet vykonanych merani: ',pad(num2str(n0,'%3.0f'),10)];
+                    line5 = ['Pocet vylucenych merani: ',pad(num2str(n0 - n,'%3.0f'),10)];
+                    line6 = ['Stupen aproximacie chodu: ',pad(num2str(stupen_polynomu_novy,'%1.0f'),10)];
+                    line7 = 'Jednotky gradientu: mikroGal/m';
+                    line8 = 'priemerna vyska, gradient, stredna chyba';
+                    header = {line1; line2; line3; line4; line5; line6; line7; line8};
+    
+                    fid = fopen(strcat(report_file,'.txt'),'w');
+                    fprintf(fid,'%s\n',header{1:end,1});
+                    fprintf(fid,'%f,%f,%f',priemerna_vyska,Wzz(2),sigma_Wzz(2));
+                    fclose(fid);
+    
+                    % vykreslenie obrazkov
+                    if plot_errors_option == 1
+                        F = figure;
+                        hold on
+                        plot(dtime,res_drift - mean(res_drift),'k','LineWidth',0.8);
+                        scatter(dtime,test- mean(res_drift_novy),10,'b','filled');
+                        scatter(dtime(index_e),test(index_e)- mean(res_drift_novy),10,'r','filled');
+                        plot(dtime_new,res_drift_novy- mean(res_drift_novy),'--','LineWidth',1);
+                        ylabel('\muGal')
+                        xlabel('cas')
 
-                % casova numericka informacia - dn (datenum)
-                dn = filedata{13};
-                % casova informacia - dtime (datetime)
-                dtime = datetime(dn,'ConvertFrom','datenum');
-                
-                % informacia o vyske senzora v cm - prevedena na metre. Senzor sa nachadza
-                % 21.1 cm pod hornou hranou gravimetra, ktorej vyska sa uvadza v zapisniku.
-                % Vyska hornej hrany sa uvadza nad znackou bodu.
-
-                if input_units_option == 1
-                    vyska = (filedata{3} - 21.1 )/100;
-                elseif input_units_option == 2
-                    vyska = (filedata{3} - 0.211 );
-                end
-                % merane gravimetricke data - prevedenie na mikrogaly.
-                grav = filedata{4}*1000;
-               
-                % Metoda najm. stvorcov
-                n0 = length(points); % pocet riadkov matice planu
-                k = length(uniquepoints); % pocet meranych bodov
-                
-                % stupen polynomu zaciatocny - spracovanim sa urci vysledny stupen polynomu
-                % ale startovaci je kvadraticky
-                stupen_polynomu = 2;
-                
-                % prva cast matice planu suvisiaca s meranymi bodmi
-                for i = 1:k
-                ind = find(points == uniquepoints(i));
-                    A(ind,i) = 1; A(~ind,i) = 0;
-                    % urcenie priemernej vysky urovni - predpoklad je ze vyska urovni sa
-                    % nemeni, ale +- 1 mm.
-                    vyska_urovni(i,1) = mean(vyska(ind));
-                end
-                % cast matica planu suvisiaca s chodom - zohladnuje casovu informacia merani
-                A(:,k+1) = 1;
-                for i = k+2:k+1+stupen_polynomu;
-                   A(:,i) = (dn - dn(1)).^(i -(k+1));
-                end
-                % regularizacia matice planu odstranenim prveho merania - fixovanie
-                % merani na zaciatocnu (spodnu) uroven.
-                A(:,1)= [];
-                
-                % vytvorenie kovariancnej matice pouzitim meranych presnosti a ich
-                % vzajomnych vah.
-                ERR = filedata{5}*1000;
-                % vahy
-                weight = mean(ERR)./ERR;
-                % vahova matica
-                P = diag(weight);
-                % kofaktorova matica a kovariancna matica
-                Q = P^-1; C = (SD00^2)*Q;
-                
-                % Metoda najmensich stvorcov odhad
-                odhadnute_parametre = (A'/C*A)\A'/C*grav;
-                % opravy meranych hodnot
-                v = (A*odhadnute_parametre) - grav;
-                % odhad jednotkovej strednej chyby
-                SD0 = sqrt((v'*inv(C)*v)/(n0-k-2-stupen_polynomu));
-                % kovariancna matica odhadnutych parametrov
-                C_theta = (SD0^2)*inv(A'*inv(C)*A);
-                % stredne chyby odhadnutych parametrov
-                SD_theta = sqrt(diag(C_theta));
-
-                % koeficienty chodu
-                drift_koef = odhadnute_parametre(end-stupen_polynomu:end);
-                % cast matice planu urcujuca chod
-                AA = A(:,end-stupen_polynomu:end);
-                % transportacny drift
-                res_drift = AA*drift_koef;
-                % test odhadu pridanim oprav
-                test = res_drift + v;
-                
-                %%  testovanie odlahlych merani
-                % testovacia statistika urcena ako 3 nasobok stadnardnej odchylky pre hladinu
-                % vynamnosti 0.05.
-                % index odlahlych merani.
-                index_e = find(abs(v)>=SD00*3);
-                
-                % statisticky test parametrov druheho linearneho modelu
-                testovacia_statistika = odhadnute_parametre(end)/SD_theta(end);
-                % urcenie vyznamnosti kvadratickeho chodu
-                if abs(testovacia_statistika) < 2 % honota 2 zodpoveda minimalnemu poctu merani 30 ~ 35, ktory je zabezpeceny hodinovym meranim
-                    stupen_polynomu_novy = 1;
-                    fprintf('použitie linearnej aproximácie chodu gravimetra na základe štatistického testu\n')
-                else
-                    stupen_polynomu_novy = 2;
-                    fprintf('použitie kvadratickej aproximácie chodu gravimetra na základe štatistického testu\n')
-                end
-                
-                %% outlier removal
-                grav(index_e) = [];
-                dn(index_e) = [];
-                points(index_e) = [];
-                ERR(index_e) = [];
-                
-                n = length(points);
-                clear A AA C Q v C_theta
-
-                %% reprocessing without outliers
-                for i = 1:k;
-                ind = find(points == uniquepoints(i));
-                    A(ind,i) = 1; A(~ind,i) = 0;
-                end
-                % the not so useful part of Jacobi's matrix
-                A(:,k+1) = 1;
-                for i = k+2:k+1+stupen_polynomu_novy;
-                   A(:,i) = (dn - dn(1)).^(i -(k+1));
-                end
-                
-                A(:,1)=[];
-                
-                weight= mean(ERR)./ERR;
-                P = diag(weight);
-                Q = P^-1; C = (SD00^2)*Q;
-                
-                odhadnute_parametre_nove = (A'/C*A)\A'/C*grav;
-                v = (A*odhadnute_parametre_nove) - grav;
-                SD0_new = sqrt((v'*inv(C)*v)/(n-k-2-stupen_polynomu_novy));           
-                C_theta = (SD0_new^2)*inv(A'*inv(C)*A);                   
-                SD_theta_new = sqrt(diag(C_theta));
-                
-                drift_koef2 = odhadnute_parametre_nove(end-stupen_polynomu_novy:end);
-                AA = A(:,end-stupen_polynomu_novy:end);
-                res_drift_novy = AA*drift_koef2;
-                
-                % casova informacia - dtime (datetime)
-                dtime_new = datetime(dn,'ConvertFrom','datenum');
-                
-                Wzz(1) = odhadnute_parametre(1)/abs(vyska_urovni(2) - vyska_urovni(1));
-                Wzz(2) = odhadnute_parametre_nove(1)/abs(vyska_urovni(2) - vyska_urovni(1));
-                sigma_Wzz(1) = sqrt((SD_theta(1)/abs(vyska_urovni(2) - vyska_urovni(1)))^2);
-                sigma_Wzz(2) = sqrt((SD_theta_new(1)/abs(vyska_urovni(2) - vyska_urovni(1)))^2);
-                priemerna_vyska = (vyska_urovni(2) + vyska_urovni(1))/2;
-
-                % vystupna cast - vytvorenie suboru
-                
-                % hlavicka s dodatocnymi informaciami
-                line1 = ['Nazov suboru pouziteho v spracovani: ', input_file];
-                line2 = ['Merany bod: ',pad(num2str(uniquepoints(1,1),'%9.4f'),10)];
-                line3 = ['Datum merania: ',datestr(dtime(1))];
-                line4 = ['Pocet vykonanych merani: ',pad(num2str(n0,'%3.0f'),10)];
-                line5 = ['Pocet vylucenych merani: ',pad(num2str(n0 - n,'%3.0f'),10)];
-                line6 = ['Stupen aproximacie chodu: ',pad(num2str(stupen_polynomu_novy,'%1.0f'),10)];
-                line7 = 'Jednotky gradientu: mikroGal/m';
-                line8 = 'priemerna vyska, gradient, stredna chyba';
-                header = {line1; line2; line3; line4; line5; line6; line7; line8};
-
-                fid = fopen(strcat(report_file,'.txt'),'w');
-                fprintf(fid,'%s\n',header{1:end,1});
-                fprintf(fid,'%f,%f,%f',priemerna_vyska,Wzz(2),sigma_Wzz(2));
-                fclose(fid);
-
-                % vykreslenie obrazkov
-                if plot_errors_option == 1
-                    F = figure;
-                    hold on
-                    plot(dtime,res_drift - mean(res_drift),'k','LineWidth',0.8);
-                    scatter(dtime,test- mean(res_drift_novy),10,'b','filled');
-                    scatter(dtime(index_e),test(index_e)- mean(res_drift_novy),10,'r','filled');
-                    plot(dtime_new,res_drift_novy- mean(res_drift_novy),'--','LineWidth',1);
-
-                    legend('pôvodný drift','vsetky merania','odlahle merania','drift po oprave','Location','best')
-                    print(F,report_file(1:end),'-djpeg','-r400')
-                else
+                        legend('pôvodný drift','vsetky merania','odlahle merania','drift po oprave','Location','best')
+                        print(F,report_file(1:end),'-djpeg','-r400')
+                    end
                 end
 
            % kliknutie na tlacidlo zavriet

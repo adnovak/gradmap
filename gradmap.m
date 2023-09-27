@@ -1,6 +1,7 @@
 % GradMap - Gradient mapping tool, vypocet vertikalneho gradientu 
 % Author: Adam Novak 
 % Pracovisko: Katedra Globalnej geodezie a Geoinformatiky & Geodeticky a Kartograficky ustav v Bratislave.
+% vyvinute pre:
 % Nastroj umoznuje vypocet gradientu tiazoveho zrychlenia v smere merania.
 
 function gradmap(GUI_par, ...               % premenna ktora sa vyuziva na prepinanie medzi uzivatelskym rozhranim a davkovym spracovanim. Pri volani nastroja bez pouzitia uzivatelskeho rozhrania treba uviest 'Run'. [string]
@@ -74,7 +75,6 @@ function gradmap(GUI_par, ...               % premenna ktora sa vyuziva na prepi
             uicontrol(p1,'Units','normalized','position',[0.74 0.1 0.15 0.2],...
                         'Style','Popupmenu','tag','units_option',...
                         'string','cm|m','value',1,'BackgroundColor','white','FontName','Trebuchet MS','FontSize',8.5);
-
 
 % ===== PANEL 2 - Vystupne udaje - dodatocne informacie
 	        p2 = uipanel(M,'Title','Vystupne udaje','Units','normalized','position',[0.02 panel2lower_boundary 0.96 panel2height],...
@@ -155,7 +155,7 @@ function gradmap(GUI_par, ...               % premenna ktora sa vyuziva na prepi
                 end
                 
                 % PRACA s GUI
-                if GUI == 1 
+                if GUI == 1
 
                 input_units_option = get(findobj('tag','units_option'),'value');
                 header_lines = str2double(get(findobj('tag','edit_pocet_riadkov'),'string'));
@@ -186,13 +186,25 @@ function gradmap(GUI_par, ...               % premenna ktora sa vyuziva na prepi
                 points = string(filedata{2});
                 % urcenie unikatnych bodov (string)
                 uniquepoints = string(unique(points,'stable'));
+                pts_num = str2double(uniquepoints(1));
+                if isnan(pts_num) == 1
+                    merany_bod = uniquepoints(1);
+                elseif isnan(pts_num) == 0
+                    merany_bod = num2str(pts_num,'%8.2f');
+                end
+                
+                % 
                 if length(uniquepoints)>2
                     fprintf('Subor obsahuje merania z viac ako dvoch bodov - skontroluj subor s meraniami ci neobsahuje chybny popis bodu. \n')
                 elseif length(uniquepoints) == 2
                     % casova numericka informacia - dn (datenum)
                     dn = filedata{13};
                     % casova informacia - dtime (datetime)
-                    dtime = datetime(dn,'ConvertFrom','datenum');
+                    % rok merania
+                    YY = filedata{15};
+                    dtime_t = datetime(dn,'ConvertFrom','datenum');
+                    MM = month(dtime_t); dd = day(dtime_t); hh = hour(dtime_t); mm = minute(dtime_t); ss = second(dtime_t);
+                    dtime = datetime(YY,MM,dd,hh,mm,ss);
                     
                     % informacia o vyske senzora v cm - prevedena na metre. Senzor sa nachadza
                     % 21.1 cm pod hornou hranou gravimetra, ktorej vyska sa uvadza v zapisniku.
@@ -260,11 +272,13 @@ function gradmap(GUI_par, ...               % premenna ktora sa vyuziva na prepi
                     res_drift = AA*drift_koef;
                     % test odhadu pridanim oprav
                     test = res_drift + v;
+                    % priemerna hodnota pre vykreslenie
+                    res_drift_priemer = mean(res_drift);
                     
                     %%  testovanie odlahlych merani
                     % testovacia statistika urcena ako 3 nasobok stadnardnej odchylky pre hladinu
                     % vynamnosti 0.05.
-                    % index odlahlych merani.
+                    % indexy odlahlych merani.
                     index_e = find(abs(v)>=SD00*3);
                     
                     % statisticky test parametrov druheho linearneho modelu
@@ -278,16 +292,17 @@ function gradmap(GUI_par, ...               % premenna ktora sa vyuziva na prepi
                         fprintf('použitie kvadratickej aproximácie chodu gravimetra na základe štatistického testu\n')
                     end
                     
-                    %% outlier removal
+                    %% odstranenie odlahlych merani
                     grav(index_e) = [];
                     dn(index_e) = [];
                     points(index_e) = [];
                     ERR(index_e) = [];
+                    YY(index_e) = [];
                     
                     n = length(points);
                     clear A AA C Q v C_theta
     
-                    %% reprocessing without outliers
+                    %% nove spracovanie bez odlahlych merani
                     for i = 1:k;
                     ind = find(points == uniquepoints(i));
                         A(ind,i) = 1; A(~ind,i) = 0;
@@ -298,13 +313,17 @@ function gradmap(GUI_par, ...               % premenna ktora sa vyuziva na prepi
                        A(:,i) = (dn - dn(1)).^(i -(k+1));
                     end
                     
+                    % nova matica planu
                     A(:,1)=[];
                     
+                    % jednotlive vahy a matica vah
                     weight= mean(ERR)./ERR;
                     P = diag(weight);
-                    Q = P^-1; C = (SD00^2)*Q;
+                    Q = P^-1; C = (SD00^2)*Q; % kofaktorova a kovariancna matica
                     
+                    % nove odhadnute parametre
                     odhadnute_parametre_nove = (A'/C*A)\A'/C*grav;
+                    % opravy merania
                     v = (A*odhadnute_parametre_nove) - grav;
                     SD0_new = sqrt((v'*inv(C)*v)/(n-k-2-stupen_polynomu_novy));           
                     C_theta = (SD0_new^2)*inv(A'*inv(C)*A);                   
@@ -312,10 +331,14 @@ function gradmap(GUI_par, ...               % premenna ktora sa vyuziva na prepi
                     
                     drift_koef2 = odhadnute_parametre_nove(end-stupen_polynomu_novy:end);
                     AA = A(:,end-stupen_polynomu_novy:end);
+                    % chod gravimetra novy
                     res_drift_novy = AA*drift_koef2;
+                    res_drift_novy_priemer = mean(res_drift_novy);
                     
                     % casova informacia - dtime (datetime)
-                    dtime_new = datetime(dn,'ConvertFrom','datenum');
+                    dtime_t_new = datetime(dn,'ConvertFrom','datenum');
+                    MM = month(dtime_t_new); DD = day(dtime_t_new); hh = hour(dtime_t_new); mm = minute(dtime_t_new); ss = second(dtime_t_new);
+                    dtime_new = datetime(YY,MM,DD,hh,mm,ss);
                     
                     Wzz(1) = odhadnute_parametre(1)/abs(vyska_urovni(2) - vyska_urovni(1));
                     Wzz(2) = odhadnute_parametre_nove(1)/abs(vyska_urovni(2) - vyska_urovni(1));
@@ -324,35 +347,38 @@ function gradmap(GUI_par, ...               % premenna ktora sa vyuziva na prepi
                     priemerna_vyska = (vyska_urovni(2) + vyska_urovni(1))/2;
     
                     % vystupna cast - vytvorenie suboru
-                    
+                  
                     % hlavicka s dodatocnymi informaciami
-                    line1 = ['Nazov suboru pouziteho v spracovani: ', input_file];
-                    line2 = ['Merany bod: ',pad(num2str(uniquepoints(1,1),'%9.4f'),10)];
-                    line3 = ['Datum merania: ',datestr(dtime(1))];
+                    line1 = ['Nazov suboru pouziteho v spracovani: ', pad(input_file,80)];
+                    line2 = ['Merany bod: ',merany_bod];
+                    line3 = ['Datum merania: ',datestr(dtime_new(1))];
                     line4 = ['Pocet vykonanych merani: ',pad(num2str(n0,'%3.0f'),10)];
                     line5 = ['Pocet vylucenych merani: ',pad(num2str(n0 - n,'%3.0f'),10)];
                     line6 = ['Stupen aproximacie chodu: ',pad(num2str(stupen_polynomu_novy,'%1.0f'),10)];
                     line7 = 'Jednotky gradientu: mikroGal/m';
                     line8 = 'priemerna vyska, gradient, stredna chyba';
                     header = {line1; line2; line3; line4; line5; line6; line7; line8};
-    
+                    
+                    % vytvorenie suboru pre zapis
                     fid = fopen(strcat(report_file,'.txt'),'w');
+                    % zapis hlavicky
                     fprintf(fid,'%s\n',header{1:end,1});
-                    fprintf(fid,'%f,%f,%f',priemerna_vyska,Wzz(2),sigma_Wzz(2));
+                    % zapis hodnot
+                    fprintf(fid,'%s,%s,%s',num2str(priemerna_vyska,'%5.3f'),num2str(Wzz(2),'%4.1f'),num2str(sigma_Wzz(2),'%2.1f'));
                     fclose(fid);
     
                     % vykreslenie obrazkov
                     if plot_errors_option == 1
                         F = figure;
                         hold on
-                        plot(dtime,res_drift - mean(res_drift),'k','LineWidth',0.8);
-                        scatter(dtime,test- mean(res_drift_novy),10,'b','filled');
-                        scatter(dtime(index_e),test(index_e)- mean(res_drift_novy),10,'r','filled');
-                        plot(dtime_new,res_drift_novy- mean(res_drift_novy),'--','LineWidth',1);
+                        plot(dtime,res_drift - res_drift_priemer,'--','color','black','LineWidth',0.9);
+                        scatter(dtime,test - res_drift_priemer,10,'b','filled');
+                        scatter(dtime(index_e),test(index_e)- res_drift_priemer,10,'r','filled');
+                        plot(dtime_new,res_drift_novy- res_drift_novy_priemer,'color','black','LineWidth',1);
                         ylabel('\muGal')
                         xlabel('cas')
 
-                        legend('pôvodný drift','vsetky merania','odlahle merania','drift po oprave','Location','best')
+                        legend('približný chod','vsetky merania','odlahle merania','chod po oprave','Location','best')
                         print(F,report_file(1:end),'-djpeg','-r400')
                     end
                 end

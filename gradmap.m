@@ -1,7 +1,6 @@
 % GradMap - Gradient mapping tool, vypocet vertikalneho gradientu 
 % Author: Adam Novak 
-% Pracovisko: Katedra Globalnej geodezie a Geoinformatiky & Geodeticky a Kartograficky ustav v Bratislave.
-% vyvinute pre:
+% Pracovisko: Geodeticky a Kartograficky ustav v Bratislave.
 % Nastroj umoznuje vypocet gradientu tiazoveho zrychlenia v smere merania.
 
 function gradmap(GUI_par, ...               % premenna ktora sa vyuziva na prepinanie medzi uzivatelskym rozhranim a davkovym spracovanim. Pri volani nastroja bez pouzitia uzivatelskeho rozhrania treba uviest 'Run'. [string]
@@ -26,8 +25,8 @@ function gradmap(GUI_par, ...               % premenna ktora sa vyuziva na prepi
         if numel(check_open_window)>0
            fprintf('Okno uz otvorene, zatvaram otvorene okno \n')
            close all
-           
         else
+            
 % open GUI
     % Main window
         % color palettes        
@@ -168,7 +167,6 @@ function gradmap(GUI_par, ...               % premenna ktora sa vyuziva na prepi
                 end
 
                 set(findobj('tag','show_report_path'),'string',strcat(outname,'.txt'), 'FontSize',8)
-
                 set(findobj('tag','push_report_file_name'),'userdata',outfile);
 
             % klinutie na zaciatok vypoctu ---------------------------------
@@ -193,18 +191,11 @@ function gradmap(GUI_par, ...               % premenna ktora sa vyuziva na prepi
 
 
                     if measured_levels == 1;
-                        number_of_measured_levels = 2
+                        number_of_measured_levels = 2;
                     elseif measured_levels == 2;
-                        number_of_measured_levels = 3
+                        number_of_measured_levels = 3;
                     end
-
-                    % poistka pre pripad ze by sa uzivatel pokusil prepisat
-                    % subor s meraniami.
-                    if report_file == input_file
-                        report_file = strcat(report_file,"vystup")
-                    else
-                    end
-
+                    
                 % Volanie z prikazoveho riadku
                 elseif GUI == 0
                 
@@ -215,17 +206,20 @@ function gradmap(GUI_par, ...               % premenna ktora sa vyuziva na prepi
                     plot_errors_option = plot_errors_option;
                     number_of_measured_levels = number_of_measured_levels;
                     report_file = report_file;
-                
-                    % poistka pre pripad ze by sa uzivatel pokusil prepisat
-                    % subor s meraniami.
-                    if report_file == input_file
-                        report_file = strcat(report_file,"vystup")
-                    else
-                    end
 
                 end
 
+
 %_______________Zaciatok Vypoctu____________________%
+
+                % poistka pre pripad ze by sa uzivatel pokusil prepisat
+                % subor s meraniami.
+                kontrola = input_file(1:end-4);
+                tf = strcmp(kontrola,report_file);
+
+                if tf == 1
+                    report_file = strcat(report_file,'_vystup');
+                end       
 
                 % nacitanie suboru
                 fileID = fopen(input_file);
@@ -400,7 +394,6 @@ function gradmap(GUI_par, ...               % premenna ktora sa vyuziva na prepi
                         priemerna_vyska = (vyska_urovni(2) + vyska_urovni(1))/2;
         
                         % vystupna cast - vytvorenie suboru
-                      
                         % hlavicka s dodatocnymi informaciami
                         line1 = ['Nazov suboru pouziteho v spracovani: ', pad(input_file,80)];
                         line2 = ['Merany bod: ',merany_bod];
@@ -411,6 +404,15 @@ function gradmap(GUI_par, ...               % premenna ktora sa vyuziva na prepi
                         line7 = 'Jednotky gradientu: mikroGal/m';
                         line8 = 'priemerna vyska, gradient, stredna chyba';
                         header = {line1; line2; line3; line4; line5; line6; line7; line8};
+                       
+                        if Wzz(2) > critical_value
+                            fprintf('urcena stredna chyba presahuje zadanu kriticku hodnotu \n')
+
+                        elseif Wzz(2) < critical_value
+                            if n0 - n > n
+                               fprintf(' Pocet vylucenych merani prekrocil pocet uvazenych merani \n') 
+                            end
+                        end
                         
                         % vytvorenie suboru pre zapis
                         fid = fopen(strcat(report_file,'.txt'),'w');
@@ -419,7 +421,7 @@ function gradmap(GUI_par, ...               % premenna ktora sa vyuziva na prepi
                         % zapis hodnot
                         fprintf(fid,'%s,%s,%s',num2str(priemerna_vyska,'%5.3f'),num2str(Wzz(2),'%4.1f'),num2str(sigma_Wzz(2),'%2.1f'));
                         fclose(fid);
-        
+    
                         % vykreslenie obrazkov
                         if plot_errors_option == 1
                             F = figure;
@@ -430,11 +432,12 @@ function gradmap(GUI_par, ...               % premenna ktora sa vyuziva na prepi
                             plot(dtime_new,res_drift_novy- res_drift_novy_priemer,'color','black','LineWidth',1);
                             ylabel('\muGal')
                             xlabel('cas')
-    
+
                             legend('približný chod','vsetky merania','odlahle merania','chod po oprave','Location','best')
                             print(F,report_file(1:end),'-djpeg','-r400')
                         end
-                    end
+                        
+                end
                 elseif number_of_measured_levels == 3;
                     if length(uniquepoints)>number_of_measured_levels
                         fprintf('Subor obsahuje merania z viac ako dvoch urovni - skontroluj subor s meraniami ci neobsahuje chybny popis bodu. \n')

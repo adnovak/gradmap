@@ -5,6 +5,6 @@ Appriori standard deviation is set to 5 μGals to reflect CG5's internal accurac
 
 Drift approximation using 1st or 2nd degree polynomial incorrporated within processing.
 
-Access via GUI or command line. GUI available in SLOVAK language only.
+Access via GUI or command line. GUI available in English and Slovak language only.
 Check testfile.txt to get an idea of data arrangement within sheet.
 Have fun.

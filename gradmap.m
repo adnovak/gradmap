@@ -18,9 +18,7 @@
 
 
 
-% HOURS SPENT DEBUGING: Way too much
-
-
+% HOURS SPENT DEBUGING: Way too much.
 
 
 % For User Interface in Slovak language with reduced functionality check corresponding branch on
@@ -191,7 +189,7 @@ function gradmap(GUI_par, ...               % premenna ktora sa vyuziva na prepi
             % number of measured positions
             uicontrol(M,'Units','normalized','position',[leftboundary+0.725 0.57 0.15 windowsize5],...
                         'Style','Popupmenu','tag','number_measured_levels',...
-                        'string','2|3|from file','value',1,'BackgroundColor','white','FontName','Trebuchet MS','FontSize',fs-0.5);
+                        'string','2|3|from file','value',3,'BackgroundColor','white','FontName','Trebuchet MS','FontSize',fs-0.5);
 
             % rejection threshold window
             uicontrol(M,'Units','normalized','Position',[leftboundary+0.74 0.52 0.1 windowsize5],...
@@ -477,11 +475,12 @@ function gradmap(GUI_par, ...               % premenna ktora sa vyuziva na prepi
                                         report(5,i) = ["status: accepted",];
                                     end
                                     
-                                    report(6,i) = strcat("number of measurements taken: ",output.processing.number_of_measurements);
-                                    report(7,i) = strcat("number of outliers: ",output.processing.number_of_rejected_measurements);
-                                    report(8,i) = strcat("drift polynomial degree: ",output.drift.polynomial_degree);
-                                    report(9,i) = "average height, gradient, standard deviation";
-                                    report(10,i)= strcat(output.gradient.average_height,",",output.gradient.average_gradient,",",output.gradient.std);
+                                    report(6,i) = strcat("number of measurements taken: ",num2str(output.processing.number_of_measurements,'%.0f'));
+                                    report(7,i) = strcat("number of outliers: ",num2str(output.processing.number_of_rejected_measurements,'%.0f'));
+                                    report(8,i) = strcat("root mean square error: ",num2str(output.processing.RMSE,'%.1f'));
+                                    report(9,i) = strcat("drift polynomial degree: ",output.drift.polynomial_degree);
+                                    report(10,i) = "average height, gradient, standard deviation";
+                                    report(11,i)= strcat(output.gradient.average_height,",",output.gradient.average_gradient,",",output.gradient.std);
     
                                     % count rejected files
                                     if output.gradient.std > rejection_threshold
@@ -492,7 +491,7 @@ function gradmap(GUI_par, ...               % premenna ktora sa vyuziva na prepi
                                     stationID = [string(stationID); string(output.stationinfo.ID)];
                                     sumdata = [output.gradient.average_gradient_num output.gradient.std_num];
                                     storedata = [storedata; sumdata];
-    
+
                                     if plot_errors_option == 1
                                         F = figure;
                                         hold on
@@ -519,28 +518,32 @@ function gradmap(GUI_par, ...               % premenna ktora sa vyuziva na prepi
                                     report(2,i) = strcat("processed file: ",output.stationinfo.filename);
                                     report(3,i) = strcat("point ID: ",output.stationinfo.ID);
                                     report(4,i) = strcat("measurement date: ",output.stationinfo.measurement_date);
-    
+
                                     % check for accepted or rejected status
                                     if output.gradient.std(1) > rejection_threshold
+                                        report(5,i) = ["status: rejected",];
+
+                                    elseif output.processing.number_of_rejected_measurements > 0.5*output.processing.number_of_measurements
                                         report(5,i) = ["status: rejected",];
                                     else
                                         report(5,i) = ["status: accepted",];
                                     end
                                     
-                                    report(6,i) = strcat("number of measurements taken: ",output.processing.number_of_measurements);
-                                    report(7,i) = strcat("number of outliers: ",output.processing.number_of_rejected_measurements);
-                                    report(8,i) = strcat("drift polynomial degree: ",output.drift.polynomial_degree);
-                                    report(9,i) = strcat("gradient polynomial degree: ",output.gradient.polynomial_degree);
-                                    report(10,i) = "gradient parameters";
-                                    report(11,i) = string(strjoin(arrayfun(@(x) num2str(x),output.gradient.gradient_param ,'UniformOutput',false),','));
-                                    report(12,i) = "standard deviation ";
-                                    report(13,i) = string(strjoin(arrayfun(@(x) num2str(x),output.gradient.std ,'UniformOutput',false),','));
+                                    report(6,i) = strcat("number of measurements taken: ",num2str(output.processing.number_of_measurements,'%.0f'));
+                                    report(7,i) = strcat("number of outliers: ",num2str(output.processing.number_of_rejected_measurements,'%.0f'));
+                                    report(8,i) = strcat("root mean square error: ",num2str(output.processing.RMSE,'%2.1f'));
+                                    report(9,i) = strcat("drift polynomial degree: ",output.drift.polynomial_degree);
+                                    report(10,i) = strcat("gradient polynomial degree: ",output.gradient.polynomial_degree);
+                                    report(11,i) = "gradient parameters";
+                                    report(12,i) = string(strjoin(arrayfun(@(x) num2str(x),output.gradient.gradient_param ,'UniformOutput',false),','));
+                                    report(13,i) = "standard deviation ";
+                                    report(14,i) = string(strjoin(arrayfun(@(x) num2str(x),output.gradient.std ,'UniformOutput',false),','));
     
                                     % % store summary data
                                     stationID = [string(stationID); string(output.stationinfo.ID)];
                                     sumdata = [output.gradient.gradient_param' output.gradient.std'];
                                     storedata = [storedata; sumdata];
-   
+
                                     % plot errors compared to approximate and
                                     % adjusted drift
                                     if plot_errors_option == 1
@@ -554,7 +557,7 @@ function gradmap(GUI_par, ...               % premenna ktora sa vyuziva na prepi
                                         set(gca, 'YGrid', 'on', 'XGrid', 'off');
                                         ylabel('\muGal')
                                         xlabel('time')
-                                        legend('approximate drift','accepted measurements','outliers','adjusted drift','Location','best')
+                                        legend('approximate drift','outliers','accepted measurements','adjusted drift','Location','best')
                                         print(F,strcat(report_file(1:end),"_",num2str(i,'%2.0f')),'-djpeg','-r400')
                                     end
     
@@ -645,17 +648,18 @@ function gradmap(GUI_par, ...               % premenna ktora sa vyuziva na prepi
                                 if overguard == 1
                                     report_file = strcat(report_file,'_output');
                                 end
-                                % call output_linear function
+                                % call function for gravity difference
+                                % computing
                                 output = gravity_differences(input_file,header_lines,calibration_factor,SD_scale_information,input_units_option,significance,SD00);
                                 report(1,i) = "";
                                 report(2,i) = strcat("processed file: ",output.stationinfo.filename);
                                 report(3,i) = strcat("measurement date: ",output.stationinfo.measurement_date);                                     
-                                report(4,i) = strcat("number of measurements taken: ",output.processing.number_of_measurements);
-                                report(5,i) = strcat("number of outliers: ",output.processing.rejected_measurements);
+                                report(4,i) = strcat("number of measurements taken: ",num2str(output.processing.number_of_measurements,'%.0f'));
+                                report(5,i) = strcat("number of outliers: ",num2str(output.processing.rejected_measurements,'%.0f'));
                                 report(6,i) = strcat("drift polynomial degree: ",output.drift.polynomial_degree);
                                 report(7,i) = "####################################################################################";
                                 report(8,i) = "starting point, ending point, gravity difference [μGal], standard deviation [μGal]";
-                                
+
                                 mp = output.stationinfo.measuredpoints;
                                 gd = output.adjusted.differences;
                                 sd = output.adjusted.std;
@@ -682,7 +686,7 @@ function gradmap(GUI_par, ...               % premenna ktora sa vyuziva na prepi
                                     ylabel('\muGal')
                                     xlabel('time')
         
-                                    legend('approximate drift','rejected measurements','accepted measurements','adjusted drift','Location','best')
+                                    legend('approximate drift','outliers','accepted measurements','adjusted drift','Location','best')
                                     set(gca, 'YGrid', 'on', 'XGrid', 'off')
                                     print(F,strcat(report_file(1:end),"_",num2str(i,'%2.0f')),'-djpeg','-r400')
                                 
@@ -692,7 +696,7 @@ function gradmap(GUI_par, ...               % premenna ktora sa vyuziva na prepi
                         
                         % summary header
                         headerline(1,1) = "Summary";
-                        headerline(2,1) = strcat("number of processed files: ",num2str(nfiles,'%2.0f'));
+                        headerline(2,1) = strcat("number of processed files: ",num2str(nfiles,'%.0f'));
                         headerline(3,1) = strcat("computation performed on: ", string(datetime("today")));
                         headerline(4,1) = strcat("calibration factor used in μGal: ", num2str(calibration_factor,'%8.7f'));
                         headerline(5,1) = strcat("instrument uncertainty used: ", num2str(SD00,'%2.0f'));
@@ -737,6 +741,7 @@ end
 % % Additional functions called within processing, do not remove, delete or
 % move these.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%________________________________________________________________________
+
 % Linear gradient _______________________________________________________________
 function [output_linear] = gradient_linear(input_file, ...
                                            header_lines, ...
@@ -852,9 +857,9 @@ function [output_linear] = gradient_linear(input_file, ...
     % measurement errors to adjusted parameters
     v = (A*adjusted_parameters) - grav;
     % Root mean square error
-    SD0 = sqrt((v'*inv(C)*v)/(n0-k-2-polynomial_degree));
+    rmse1 = sqrt((v'*inv(C)*v)/(n0-k-2-polynomial_degree));
     % Covariance matrix of adjusted parameters
-    C_theta = (SD0^2)*inv(A'*inv(C)*A);
+    C_theta = (rmse1^2)*inv(A'*inv(C)*A);
     % standard deviation of adjusted parameters
     SD_theta = sqrt(diag(C_theta));
 
@@ -884,7 +889,7 @@ function [output_linear] = gradient_linear(input_file, ...
     end
 
     % outliers indexes 
-    index_outliers = find(abs(v)>=SD00*significance);
+    index_outliers = find(abs(v)>=SD00*rmse1*significance);
     
     % Statistical testing of parameters, where Tau is a result of
     % statistic test representing a Student's distribution
@@ -913,6 +918,7 @@ function [output_linear] = gradient_linear(input_file, ...
             polynomial_degree_new = 2; % drift approx. function remains quadratic
         end
     end
+
     % removing outliers 
     grav(index_outliers) = [];
     dn(index_outliers) = [];
@@ -946,8 +952,8 @@ function [output_linear] = gradient_linear(input_file, ...
     adjusted_parameters_new = (A'/C*A)\A'/C*grav;
     % measurements errors to adjusted parameters
     v = (A*adjusted_parameters_new) - grav;
-    SD0_new = sqrt((v'*inv(C)*v)/(n-k-2-polynomial_degree_new-1));           
-    C_theta = (SD0_new^2)*inv(A'*inv(C)*A);                   
+    rmse2 = sqrt((v'*inv(C)*v)/(n-k-2-polynomial_degree_new-1));           
+    C_theta = (rmse2^2)*inv(A'*inv(C)*A);                   
     SD_theta_new = sqrt(diag(C_theta));
     
     drift_koef2 = adjusted_parameters_new(end-polynomial_degree_new:end);
@@ -1070,11 +1076,11 @@ function [output_linear] = gradient_linear(input_file, ...
     output_linear.time.no_outliers = dtime_new;
     output_linear.time.outliers = dtime(index_outliers);
 
-    output_linear.processing.number_of_measurements = pad(num2str(n0,'%3.0f'),10);
-    output_linear.processing.number_of_rejected_measurements = pad(num2str(n0 - n,'%3.0f'),10);
+    output_linear.processing.number_of_measurements = n0;
+    output_linear.processing.number_of_rejected_measurements =n0 - n;
     output_linear.processing.errors_all = test - res_drift_av;
     output_linear.processing.errors_outliers = test(index_outliers) - res_drift_av;
-    output_linear.processing.RMSE = SD0_new*SD00;
+    output_linear.processing.RMSE = rmse2*SD00;
 
     output_linear.drift.polynomial_degree = pad(num2str(polynomial_degree_new,'%1.0f'),10);
     output_linear.drift.drift_all_measurements = res_drift - res_drift_av;
@@ -1090,6 +1096,8 @@ function [output_linear] = gradient_linear(input_file, ...
     output_linear.gradient.std_num = sigma_av_Wzz;
 
 end
+
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % gradient as a function of height and time
@@ -1396,9 +1404,9 @@ function [output_function] = gradient_function(input_file, ...
     % measurement errors to adjusted parameters
     v_final = (A*adjusted_parameters_final) - grav_final;
     % Root mean square error
-    rmse_final = sqrt((v_final'*inv(C)*v_final)/(nrows-lgt));
+    rmse3 = sqrt((v_final'*inv(C)*v_final)/(nrows-lgt));
     % Covariance matrix of adjusted parameters
-    C_theta = (rmse_final^2)*inv(A'*inv(C)*A);
+    C_theta = (rmse3^2)*inv(A'*inv(C)*A);
     % standard deviation of adjusted parameters
     SD_theta_final = sqrt(diag(C_theta));
     % drift coeficients
@@ -1425,12 +1433,12 @@ function [output_function] = gradient_function(input_file, ...
     output_function.time.all_measurements = dtime;
     output_function.time.no_outliers = dtime(ib);
 
-    output_function.processing.number_of_measurements = pad(num2str(nrows,'%3.0f'),10);
-    output_function.processing.number_of_rejected_measurements = pad(num2str(n0 - nrows,'%3.0f'),10);
+    output_function.processing.number_of_measurements = nrows;
+    output_function.processing.number_of_rejected_measurements = n0 - nrows;
 
     output_function.processing.errors_all = test1 - res_drift_av;
     output_function.processing.outliers_removed = output_function.processing.errors_all(ib);
-    output_function.processing.RMSE = rmse_final*SD00;
+    output_function.processing.RMSE = rmse3*SD00;
 
     output_function.drift.polynomial_degree = pad(num2str(polynomial_degree_time_final,'%1.0f'),10);
     output_function.drift.drift_all_measurements = res_drift - res_drift_av;
@@ -1444,9 +1452,8 @@ function [output_function] = gradient_function(input_file, ...
 
 end
 
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Linear gradient _______________________________________________________________
+% Gravity differences _______________________________________________________________
 function [output_gravity_diff] = gravity_differences(input_file, ...
                                                      header_lines, ...
                                                      calibration_factor, ...
@@ -1565,9 +1572,9 @@ function [output_gravity_diff] = gravity_differences(input_file, ...
     % measurement errors to adjusted parameters
     v = (A*adjusted_parameters) - grav;
     % Root mean square error
-    SD0 = sqrt((v'*inv(C)*v)/(n0-k-2-polynomial_degree));
+    rmse1 = sqrt((v'*inv(C)*v)/(n0-k-2-polynomial_degree));
     % Covariance matrix of adjusted parameters
-    C_theta = (SD0^2)*inv(A'*inv(C)*A);
+    C_theta = (rmse1^2)*inv(A'*inv(C)*A);
     % standard deviation of adjusted parameters
     SD_theta = sqrt(diag(C_theta));
 
@@ -1597,7 +1604,7 @@ function [output_gravity_diff] = gravity_differences(input_file, ...
     end
 
     % outliers indexes 
-    index_outliers = find(abs(v)>=SD00*SD0*significance);
+    index_outliers = find(abs(v)>=SD00*rmse1*significance);
 
     % Statistical testing of parameters, where Tau is a result of
     % statistic test representing a Student's distribution
@@ -1659,8 +1666,8 @@ function [output_gravity_diff] = gravity_differences(input_file, ...
     adjusted_parameters_new = (A'/C*A)\A'/C*grav;
     % measurements errors to adjusted parameters
     v = (A*adjusted_parameters_new) - grav;
-    SD0_new = sqrt((v'*inv(C)*v)/(n-k-2-polynomial_degree_new-1));           
-    C_theta = (SD0_new^2)*inv(A'*inv(C)*A);                   
+    rmse2 = sqrt((v'*inv(C)*v)/(n-k-2-polynomial_degree_new-1));           
+    C_theta = (rmse2^2)*inv(A'*inv(C)*A);                   
     SD_theta_new = sqrt(diag(C_theta));
     
     drift_koef2 = adjusted_parameters_new(end-polynomial_degree_new:end);
@@ -1682,9 +1689,9 @@ function [output_gravity_diff] = gravity_differences(input_file, ...
     output_gravity_diff.time.no_outliers = dtime_new;
     output_gravity_diff.time.outliers = dtime(index_outliers);
 
-    output_gravity_diff.processing.number_of_measurements = pad(num2str(n0,'%3.0f'),10);
-    output_gravity_diff.processing.rejected_measurements = pad(num2str(n0 - n,'%3.0f'),10);
-    output_gravity_diff.processing.RMSE = SD0_new;
+    output_gravity_diff.processing.number_of_measurements = n0;
+    output_gravity_diff.processing.rejected_measurements = n0 - n;
+    output_gravity_diff.processing.RMSE = rmse2*SD00;
     output_gravity_diff.processing.errors_all = test - res_drift_av;
     output_gravity_diff.processing.errors_outliers = test(index_outliers) - res_drift_av;
 

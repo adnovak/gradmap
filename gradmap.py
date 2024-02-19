@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-Created on Thu Feb 15 13:05:17 2024
 
-@author: adam.novak
+
+@author: adam.novak@skgeodesy.sk
 """
+
 import tkinter as tk
 from tkinter import filedialog
 from tkinter import font
@@ -20,9 +21,10 @@ class App(tk.Frame):
         self.master.geometry('500x650')  # Adjusted size to accommodate widgets
         self.master.resizable(True, True)
         
-        custom_font = font.Font(family="Trebuchet MS", size=int(11.5))  # Customize the font as needed
-        custom_font_panel = font.Font(family="Trebuchet MS", size= int(11.5), weight="bold")  # Customize the font as needed
-        custom_font_display = font.Font(family="Trebuchet MS", size= int(9))  # Customize the font as needed
+        custom_font = font.Font(family="Trebuchet MS", size=int(11.5))  # font for standard widget labels
+        custom_font_panel = font.Font(family="Trebuchet MS", size= int(11.5), weight="bold")  # font for labeling panel names
+        custom_font_display = font.Font(family="Trebuchet MS", size= int(9))  # font for displaying filnames
+        custom_font_widgets = font.Font(family="Trebuchet MS", size= int(10))  # font displayed within entry window widgets
 
         p1 = tk.LabelFrame(self.master, text='Input Data', bg='#f0f0f0', relief=tk.GROOVE, borderwidth=2.5,font=custom_font_panel)
         p1.place(relx=0.02, rely=0.01, relwidth=0.96, relheight=0.31)
@@ -45,18 +47,19 @@ class App(tk.Frame):
         label_sd_scaling = tk.Label(p1, text="standard deviation scaling", bg='#f0f0f0', anchor="w", font=custom_font)
         label_sd_scaling.place(relx=0.02, rely=0.82, relwidth=0.42, relheight=0.12)
 
-        entry_header_lines = tk.Entry(p1, font=custom_font)
+        entry_header_lines = tk.Entry(p1, font=custom_font_widgets, justify='center')
+        entry_header_lines.insert(0, 34)  # Prefill with the default value 34
         entry_header_lines.place(relx=0.74, rely=0.32, relwidth=0.1, relheight=0.12)
 
-        units_options = tk.OptionMenu(p1, tk.StringVar(), "cm", "m")
-        units_options.place(relx=0.74, rely=0.45, relwidth=0.12, relheight=0.15)
+        units_options = tk.OptionMenu(p1, tk.StringVar(value="cm"), "cm", "m")
+        units_options.place(relx=0.73, rely=0.45, relwidth=0.12, relheight=0.15)
 
-        entry_accuracy = tk.Entry(p1, font=custom_font)
+        entry_accuracy = tk.Entry(p1, font=custom_font_widgets, justify='center')
+        entry_accuracy.insert(0, 5)  # Prefill with the default value 5 microGals
         entry_accuracy.place(relx=0.74, rely=0.65, relwidth=0.1, relheight=0.12)
 
-        sd_scaling_options = tk.OptionMenu(p1, tk.StringVar(), "series", "second")
-        sd_scaling_options.place(relx=0.74, rely=0.8, relwidth=0.18, relheight=0.15)
-
+        sd_scaling_options = tk.OptionMenu(p1, tk.StringVar(value="series"), "series", "second")
+        sd_scaling_options.place(relx=0.72, rely=0.8, relwidth=0.18, relheight=0.17)
 
         # Panel 2 - Processing
         p2 = tk.LabelFrame(self.master, text='Processing', bg='#f0f0f0', relief=tk.GROOVE, borderwidth=2,font = custom_font_panel)
@@ -69,33 +72,30 @@ class App(tk.Frame):
         label_rejection_threshold = tk.Label(p2, text='rejection threshold in µGal', bg='#f0f0f0', anchor="w", font=custom_font)
         label_rejection_threshold.place(relx=0.02, rely=0.28, relwidth=0.5, relheight=0.12)
 
-        label_gradient_format = tk.Label(p2, text='gradient gormat', bg='#f0f0f0', anchor="w", font=custom_font)
+        label_gradient_format = tk.Label(p2, text='gradient format', bg='#f0f0f0', anchor="w", font=custom_font)
         label_gradient_format.place(relx=0.02, rely=0.46, relwidth=0.5, relheight=0.12)
         
-        label_calibration_factor = tk.Label(p2, text='calibration factor', bg='#f0f0f0', anchor="w", font=custom_font)
-        label_calibration_factor.place(relx=0.02, rely=0.63, relwidth=0.5, relheight=0.12)
-
         label_significance_level = tk.Label(p2, text='significance level', bg='#f0f0f0', anchor="w", font=custom_font)
-        label_significance_level.place(relx=0.02, rely=0.8, relwidth=0.5, relheight=0.12)
-
-
-
-        measured_positions_options = tk.OptionMenu(p2, tk.StringVar(), "2", "3", "from file")
-        measured_positions_options.place(relx=0.74, rely=0.1, relwidth=0.12, relheight=0.15)
+        label_significance_level.place(relx=0.02, rely=0.63, relwidth=0.5, relheight=0.12)
         
-        entry_rejection_threshold = tk.Entry(p2, font=custom_font)
+        label_calibration_factor = tk.Label(p2, text='calibration factor', bg='#f0f0f0', anchor="w", font=custom_font)
+        label_calibration_factor.place(relx=0.02, rely=0.8, relwidth=0.5, relheight=0.12)
+
+        measured_positions_options = tk.OptionMenu(p2, tk.StringVar(value="2"), "2", "3", "from file")
+        measured_positions_options.place(relx=0.72, rely=0.1, relwidth=0.12, relheight=0.15)
+        
+        entry_rejection_threshold = tk.Entry(p2, font=custom_font_widgets, justify='center')
+        entry_rejection_threshold.insert(0,5)  # Prefill with the default value 5
         entry_rejection_threshold.place(relx=0.74, rely=0.29, relwidth=0.1, relheight=0.12)
 
-        gradient_format_options = tk.OptionMenu(p2, tk.StringVar(), "linear", "function")
-        gradient_format_options.place(relx=0.74, rely=0.45, relwidth=0.12, relheight=0.15)
+        gradient_format_options = tk.OptionMenu(p2, tk.StringVar(value="linear"), "linear", "function")
+        gradient_format_options.place(relx=0.72, rely=0.45, relwidth=0.16, relheight=0.15)
 
-        significance_level_options = tk.OptionMenu(p2, tk.StringVar(), "1-σ (68% confidence bounds)", "2-σ (95% confidence bounds)", "3-σ (99.7% confidence bounds)")
-        significance_level_options.place(relx=0.74, rely=0.62, relwidth=0.18, relheight=0.15)
+        significance_level_options = tk.OptionMenu(p2, tk.StringVar(value = "2-σ .."), "1-σ (68% confidence bounds)", "2-σ (95% confidence bounds)", "3-σ (99.7% confidence bounds)")
+        significance_level_options.place(relx=0.72, rely=0.62, relwidth=0.18, relheight=0.15)
 
-        entry_calibration_factor = tk.Entry(p2, font=custom_font)
+        entry_calibration_factor = tk.Entry(p2, font=custom_font_widgets, justify='center')
         entry_calibration_factor.place(relx=0.74, rely=0.81, relwidth=0.1, relheight=0.12)
-
-
 
         # Panel 3
         p3 = tk.LabelFrame(self.master, text='Output data', bg='#f0f0f0', relief=tk.GROOVE, borderwidth=2, font=custom_font_panel)
@@ -135,8 +135,7 @@ class App(tk.Frame):
         self.check_gravity_dif_var = tk.BooleanVar(value=False)
         check_gravity_dif = tk.Checkbutton(p3, text='', variable=self.check_gravity_dif_var, bg='#f0f0f0')
         check_gravity_dif.place(relx= 0.77, rely=0.75, relwidth=0.09, relheight=0.15)
-
-
+        
         # Buttons in the main window
         execute_button = tk.Button(self.master, text='Execute', bg='#e7e7e7', command=lambda: print('Executing'), font=custom_font)
         execute_button.place(relx=0.25, rely=0.93, relwidth=0.19, relheight=0.05)

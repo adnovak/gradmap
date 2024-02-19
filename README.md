@@ -1,7 +1,7 @@
 # gradmap
 gravity gradient computing tool
-Developed for GKU under open license. Processing designed for CG5 measurements carried out at two positions.
-Appriori standard deviation is set to 5 μGals to reflect CG5's internal accuracy.
+Developed for GKU under open license. Processing designed for CG5 measurements.
+Standard gradient processing method and non-linear function included.
 
 Drift approximation using 1st or 2nd degree polynomial incorrporated within processing.
 

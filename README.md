@@ -27,6 +27,6 @@ Tool enables arbitrary number of files to be selected (processed) as long as the
 
 
 
-Currently working on a python version to provide alternative 
+Currently working on a python version to provide to bypass matlab license requirement.
 
 Have fun.

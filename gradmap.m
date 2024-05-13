@@ -1,6 +1,6 @@
 % GradMap v1.0 - Gradient mapping tool enabling gradient calculation based on
 % relative gravity measurements.
-% Author: Adam Novak 
+% Author: Adam Novak
 % Workplace: Geodetic and Cartographic Institute, reference frames group.
 % Description:
 % The tool enables gravity gradient calculations along one axis (vertical direction)
@@ -16,16 +16,12 @@
 % levels (vertical positions), instrument accuracy, height units provided
 % by the user, standard deviation scaling and more.
 
-
-
 % HOURS SPENT DEBUGING: Way too much.
 
 
-% For User Interface in Slovak language with reduced functionality check corresponding branch on
-% github.
 % Check for updated version on https://github.com/adnovak/gradmap
 
-function gradmap(GUI_par, ...               % premenna ktora sa vyuziva na prepinanie medzi uzivatelskym rozhranim a davkovym spracovanim. Pri volani nastroja bez pouzitia uzivatelskeho rozhrania treba uviest 'Run'. [string]
+function gradmap(GUI_par, ...               % variables used to switch between command line and GUI use. When calling function from command line use 'Run'. [string]
     ...
     input_units_option, ...                 % specifies height unit that operator used during measurements '1' for centimetres and '2' for metres [double]. User should store height measured to the upper edge of the instrument to correctly assign 
     ...                                 
@@ -475,7 +471,7 @@ function gradmap(GUI_par, ...               % premenna ktora sa vyuziva na prepi
                                         report(5,i) = ["status: accepted",];
                                     end
                                     
-                                    report(6,i) = strcat("number of measurements taken: ",num2str(output.processing.number_of_measurements,'%.0f'));
+                                    report(6,i) = strcat("number of measurements accepted: ",num2str(output.processing.number_of_measurements,'%.0f'));
                                     report(7,i) = strcat("number of outliers: ",num2str(output.processing.number_of_rejected_measurements,'%.0f'));
                                     report(8,i) = strcat("root mean square error: ",num2str(output.processing.RMSE,'%.1f'));
                                     report(9,i) = strcat("drift polynomial degree: ",output.drift.polynomial_degree);
@@ -529,7 +525,7 @@ function gradmap(GUI_par, ...               % premenna ktora sa vyuziva na prepi
                                         report(5,i) = ["status: accepted",];
                                     end
                                     
-                                    report(6,i) = strcat("number of measurements taken: ",num2str(output.processing.number_of_measurements,'%.0f'));
+                                    report(6,i) = strcat("number of measurements accepted: ",num2str(output.processing.number_of_measurements,'%.0f'));
                                     report(7,i) = strcat("number of outliers: ",num2str(output.processing.number_of_rejected_measurements,'%.0f'));
                                     report(8,i) = strcat("root mean square error: ",num2str(output.processing.RMSE,'%2.1f'));
                                     report(9,i) = strcat("drift polynomial degree: ",output.drift.polynomial_degree);
@@ -538,10 +534,11 @@ function gradmap(GUI_par, ...               % premenna ktora sa vyuziva na prepi
                                     report(12,i) = string(strjoin(arrayfun(@(x) num2str(x),output.gradient.gradient_param ,'UniformOutput',false),','));
                                     report(13,i) = "standard deviation ";
                                     report(14,i) = string(strjoin(arrayfun(@(x) num2str(x),output.gradient.std ,'UniformOutput',false),','));
+                                    report(15,i) = strcat("covariance:",string(output.gradient.cov));
     
                                     % % store summary data
                                     stationID = [string(stationID); string(output.stationinfo.ID)];
-                                    sumdata = [output.gradient.gradient_param' output.gradient.std'];
+                                    sumdata = [output.gradient.gradient_param' output.gradient.std' output.gradient.cov];
                                     storedata = [storedata; sumdata];
 
                                     % plot errors compared to approximate and
@@ -589,8 +586,8 @@ function gradmap(GUI_par, ...               % premenna ktora sa vyuziva na prepi
                             headerline(8,1) = strcat("processing method: linear");
                             headerline(9,1)= "gradient units: μGal/m";
                         elseif gradient_format == 2
-                            headerline(8,1) = strcat("processing method: function A + BH + CH²");
-                            headerline(9,1)= "Parameter units: A[μGal/m], B[μGal/m²] C[μGal/m³] ";
+                            headerline(8,1) = strcat("processing method: function AH + BH²");
+                            headerline(9,1)= "Parameter units: A[μGal/m], B[μGal/m²]";
                         end
                         headerline(10,1) = "End of summary";
     
@@ -612,14 +609,14 @@ function gradmap(GUI_par, ...               % premenna ktora sa vyuziva na prepi
                                 T.Properties.VariableNames{1,3} = 'Gradient SD';
                                 
                             elseif gradient_format == 2
-                                T = table(stationID,storedata(:,1),storedata(:,2),storedata(:,3),storedata(:,4),storedata(:,5),storedata(:,6));
+                                T = table(stationID,storedata(:,1),storedata(:,2),storedata(:,3),storedata(:,4),storedata(:,5));
                                 T.Properties.VariableNames{1,1} = 'Station ID';
                                 T.Properties.VariableNames{1,2} = 'A';
                                 T.Properties.VariableNames{1,3} = 'B';
-                                T.Properties.VariableNames{1,4} = 'C';
-                                T.Properties.VariableNames{1,5} = 'SD_A';
-                                T.Properties.VariableNames{1,6} = 'SD_B';
-                                T.Properties.VariableNames{1,7} = 'SD_C';
+                                T.Properties.VariableNames{1,4} = 'SD_A';
+                                T.Properties.VariableNames{1,5} = 'SD_B';
+                                T.Properties.VariableNames{1,6} = 'cov_A_B';
+
                             end
                             % save data into xlsx file
                             writetable(T,filename);
@@ -654,25 +651,25 @@ function gradmap(GUI_par, ...               % premenna ktora sa vyuziva na prepi
                                 report(1,i) = "";
                                 report(2,i) = strcat("processed file: ",output.stationinfo.filename);
                                 report(3,i) = strcat("measurement date: ",output.stationinfo.measurement_date);                                     
-                                report(4,i) = strcat("number of measurements taken: ",num2str(output.processing.number_of_measurements,'%.0f'));
+                                report(4,i) = strcat("number of measurements accepted: ",num2str(output.processing.number_of_measurements,'%.0f'));
                                 report(5,i) = strcat("number of outliers: ",num2str(output.processing.rejected_measurements,'%.0f'));
                                 report(6,i) = strcat("drift polynomial degree: ",output.drift.polynomial_degree);
-                                report(7,i) = "####################################################################################";
-                                report(8,i) = "starting point, ending point, gravity difference [μGal], standard deviation [μGal]";
+                                report(7,i) = strcat("root mean square error [μGal]: ",num2str(output.processing.RMSE,'%.1f'));
+                                report(8,i) = "####################################################################################";
+                                report(9,i) = "starting point, ending point, gravity difference [μGal], standard deviation [μGal]";
 
                                 mp = output.stationinfo.measuredpoints;
                                 gd = output.adjusted.differences;
                                 sd = output.adjusted.std;
-
+                             
                                 for zz = 1:length(mp)-1
-                                    report(8+zz,i) = strcat(mp(1),",",...
+                                    report(9+zz,i) = strcat(mp(1),",",...
                                         mp(zz+1),",",...
                                         num2str(gd(zz),'%5.1f'),",", ...
                                         num2str(sd(zz),'%5.1f'));
                                 end
-
-                                report(8+length(mp),i) = "####################################################################################";
-
+                                
+                                report(9+length(mp),i) = "####################################################################################";
 
                                 % plot errors compared to approximate and
                                 % adjusted drift
@@ -713,6 +710,8 @@ function gradmap(GUI_par, ...               % premenna ktora sa vyuziva na prepi
     
                         % reshape header
                         report = reshape(report,[],1);
+                        report = rmmissing(report);
+
                         % create file for writing data
                         fid = fopen(strcat(report_file,'.txt'),'w');
                         fprintf(fid,'%s\n',headerline);
@@ -721,6 +720,7 @@ function gradmap(GUI_par, ...               % premenna ktora sa vyuziva na prepi
                     % end for store_ gravity_dif    
                     end
                 end
+                % finished
            % Close button
             case 'Close'
                close all
@@ -751,7 +751,6 @@ function [output_linear] = gradient_linear(input_file, ...
                                            input_units_option, ...
                                            significance,...
                                            SD00)
-    
     % file reading
     fileID = fopen(input_file);
     % read data from file
@@ -1065,7 +1064,6 @@ function [output_linear] = gradient_linear(input_file, ...
         elseif length(uniquepoints) < 4
             fprintf('Why would you measure at more than four levels?')
         end
-
     end
     
     output_linear.stationinfo.ID = measured_station_ID;
@@ -1094,9 +1092,7 @@ function [output_linear] = gradient_linear(input_file, ...
     output_linear.gradient.average_height_num = av_height;
     output_linear.gradient.average_gradient_num = av_Wzz;
     output_linear.gradient.std_num = sigma_av_Wzz;
-
 end
-
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -1108,7 +1104,6 @@ function [output_function] = gradient_function(input_file, ...
                                                input_units_option, ...
                                                significance,...
                                                SD00)
-    
     % file reading
     fileID = fopen(input_file);
     % read data from file
@@ -1165,7 +1160,11 @@ function [output_function] = gradient_function(input_file, ...
 
     % initial polynomial degree is set to k-1, maximum possible. Number of
     % measured levels defines maximum possible poly degree.
+    
     polynomial_degree_height = k-1;
+    if k-1>2
+        polynomial_degree_height = 2;
+    end
 
     % Jacobi matrix creation - first column
     A(:,1) = ones(n0,1);
@@ -1246,7 +1245,7 @@ function [output_function] = gradient_function(input_file, ...
     % statistic test representing a Student's distribution
     Tau1 = adjusted_parameters(end)/SD_theta(end);
     Tau2 = adjusted_parameters(end-polynomial_degree_time)/SD_theta(end-polynomial_degree_time);
-    
+
     hasLicenseForToolbox = license('test', 'Statistics_Toolbox');
 
     if hasLicenseForToolbox == 0 % if working without statistic toolbox
@@ -1345,6 +1344,7 @@ function [output_function] = gradient_function(input_file, ...
     % statistic test representing a Student's distribution
     Tau2_new = adjusted_parameters_new(end-polynomial_degree_time_final)/SD_theta_new(end-polynomial_degree_time_final);
 
+
     if hasLicenseForToolbox == 0 % if working without statistic toolbox
 
         if abs(Tau2_new) < sqrt(students_inverse_approximate) % intentionally decreased for 2nd test since one testing has already has been performed
@@ -1361,6 +1361,7 @@ function [output_function] = gradient_function(input_file, ...
         if abs(Tau2_new) < sqrt(students_inverse) % intentionally decreased for 2nd test, since one testing has already has been performed
             polynomial_degree_height_final = polynomial_degree_height_new - 1; % polynomial of gradient approx. function is reduced by 1
             % else polynomial of gradient approx. function remains the same
+
         else
             polynomial_degree_height_final = polynomial_degree_height_new; % drift approx. function remains quadratic
         end
@@ -1409,6 +1410,14 @@ function [output_function] = gradient_function(input_file, ...
     C_theta = (rmse3^2)*inv(A'*inv(C)*A);
     % standard deviation of adjusted parameters
     SD_theta_final = sqrt(diag(C_theta));
+    % covariance of parameters
+
+    if polynomial_degree_height_final == 2
+        covariance_parameter = sqrt(abs(C_theta(2,3)));
+    else
+        covariance_parameter = 0;
+    end
+
     % drift coeficients
     drift_koef = adjusted_parameters_final(end-polynomial_degree_time_final+1:end);
     % drift section of Jacobi matrix
@@ -1446,9 +1455,11 @@ function [output_function] = gradient_function(input_file, ...
 
     output_function.gradient.polynomial_degree = num2str(polynomial_degree_height_final,'%1.0f');
     output_function.gradient.gradient_param = adjusted_parameters_final(2:1+polynomial_degree_height_final);
-    output_function.gradient.gradient_param = [output_function.gradient.gradient_param; zeros(3-numel(output_function.gradient.gradient_param),1)];
+    output_function.gradient.gradient_param = [output_function.gradient.gradient_param; zeros(2-numel(output_function.gradient.gradient_param),1)];
+
     output_function.gradient.std = SD_theta_final(2:1+polynomial_degree_height_final);
-    output_function.gradient.std = [output_function.gradient.std; zeros(3-numel(output_function.gradient.std),1)];
+    output_function.gradient.std = [output_function.gradient.std; zeros(2-numel(output_function.gradient.std),1)];
+    output_function.gradient.cov = covariance_parameter;
 
 end
 

@@ -683,7 +683,7 @@ function gradmap(GUI_par, ...               % variables used to switch between c
                                     ylabel('\muGal')
                                     xlabel('time')
         
-                                    legend('approximate drift','outliers','accepted measurements','adjusted drift','Location','best')
+                                    legend('approximate drift','accepted measurements','outliers','adjusted drift','Location','best')
                                     set(gca, 'YGrid', 'on', 'XGrid', 'off')
                                     print(F,strcat(report_file(1:end),"_",num2str(i,'%2.0f')),'-djpeg','-r400')
                                 
@@ -1540,7 +1540,6 @@ function [output_gravity_diff] = gravity_differences(input_file, ...
     ind = find(points == uniquepoints(i));
         A(ind,i) = 1; A(~ind,i) = 0;
         % average height for individual measured levels
-        level_height(i,1) = mean(height(ind));
     end
 
     % Jacobi matrix, drift part

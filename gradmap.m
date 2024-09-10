@@ -319,9 +319,7 @@ function gradmap(GUI_par, ...               % variables used to switch between c
                     if prip == '.txt'
                        outfile = outfile(1:end-4);
                        outname = outname(1:end-4);
-                    else
-                        outfile = outfile;
-                    end
+                    end 
     
                     set(findobj('tag','show_report_path'),'string',strcat(outname,'.txt'), 'FontSize',8)
                     set(findobj('tag','push_report_file_name'),'userdata',outfile);
@@ -352,6 +350,8 @@ function gradmap(GUI_par, ...               % variables used to switch between c
                     % we ought to know whether Standard deviation has
                     % already been scaled properly
                     SD_scale_information = SD_scaling - 1;
+                    
+                    instrument_type = 'CG5';
 
                     % get num of measured levels from GUI
                     measured_levels = get(findobj('tag','number_measured_levels'),'value');
@@ -378,7 +378,7 @@ function gradmap(GUI_par, ...               % variables used to switch between c
                     % get save gravity difference options
                     store_gravity_dif = get(findobj('tag','check_gravity_dif'),'value');
 
-                    if measured_levels == 1;
+                    if measured_levels == 1
                         number_of_measured_levels = 2;
                     elseif measured_levels == 2;
                         number_of_measured_levels = 3;
@@ -455,7 +455,7 @@ function gradmap(GUI_par, ...               % variables used to switch between c
     
                                 if gradient_format == 1
                                     % call output_linear function
-                                    output = gradient_linear(input_file,header_lines,calibration_factor,SD_scale_information,number_of_measured_levels,input_units_option,significance,SD00);
+                                    output = gradient_linear(input_file,header_lines,instrument_type,calibration_factor,SD_scale_information,number_of_measured_levels,input_units_option,significance,SD00);
                                     % compose report for each processed file
                                     % empty line at the start each
                                     % processing report
@@ -506,7 +506,7 @@ function gradmap(GUI_par, ...               % variables used to switch between c
                                 elseif gradient_format == 2
                                 
                                     % call processing function
-                                    output = gradient_function(input_file, header_lines, calibration_factor, SD_scale_information, input_units_option,significance,SD00);
+                                    output = gradient_function(input_file, header_lines,instrument_type, calibration_factor, SD_scale_information, input_units_option,significance,SD00);
                                     % compose report for each processed file
                                     % empty line at the start each
                                     % processing report
@@ -647,7 +647,7 @@ function gradmap(GUI_par, ...               % variables used to switch between c
                                 end
                                 % call function for gravity difference
                                 % computing
-                                output = gravity_differences(input_file,header_lines,calibration_factor,SD_scale_information,input_units_option,significance,SD00);
+                                output = gravity_differences(input_file,header_lines,instrument_type,calibration_factor,SD_scale_information,input_units_option,significance,SD00);
                                 report(1,i) = "";
                                 report(2,i) = strcat("processed file: ",output.stationinfo.filename);
                                 report(3,i) = strcat("measurement date: ",output.stationinfo.measurement_date);                                     
@@ -745,19 +745,21 @@ end
 % Linear gradient _______________________________________________________________
 function [output_linear] = gradient_linear(input_file, ...
                                            header_lines, ...
+                                           instrument_type, ...
                                            calibration_factor, ...
                                            SD_scale_information, ...
                                            number_of_measured_levels, ...
                                            input_units_option, ...
                                            significance,...
                                            SD00)
+    
     % file reading
-    fileID = fopen(input_file);
-    % read data from file
-    filedata = textscan (fileID, '%f %s %f %f %f %f %f %f %f %f %f %9s %f %f %f %s', 'headerLines', header_lines);
+    if instrument_type == 'CG5'
+        [points,dtime,dn,YY,height,grav,ERR] = read_CG5(input_file,header_lines,calibration_factor,SD_scale_information,input_units_option);
+    elseif instrument_type == 'CG6'
+        [points,dtime,height,grav,ERR] = read_CG6(input_file,header_lines,calibration_factor,SD_scale_information,input_units_option);
+    end
 
-    % point ID information
-    points = string(filedata{2});
     % get unique points (string)
     uniquepoints = string(unique(points,'stable'));
     pts_num = str2double(uniquepoints(1));
@@ -767,38 +769,6 @@ function [output_linear] = gradient_linear(input_file, ...
         measured_station_ID = num2str(pts_num,'%8.2f');
     end
 
-    % datetime numeric information for each measurement - dn (datenum)
-    dn = filedata{13};
-    % time information - dtime (datetime) extracted from individual
-    % information in file
-    YY = filedata{15};
-    dtime_t = datetime(dn,'ConvertFrom','datenum');
-    MM = month(dtime_t); dd = day(dtime_t); hh = hour(dtime_t); mm = minute(dtime_t); ss = second(dtime_t);
-    dtime = datetime(YY,MM,dd,hh,mm,ss);
-    
-    % height above surface (mark) - converted to metres. For CG5 the sensor
-    % is located 21.1 cm below the top according to manual. The height in
-    % the spreadsheet is usually a height difference between top of the
-    % gravimeter and ground mark at individual position
-
-    if input_units_option == 1
-        height = (filedata{3} - 21.1)/100;
-    elseif input_units_option == 2
-        height = (filedata{3} - 0.211);
-        % check if height units are correctly assigned, assuming gravimeter
-        % cannot be placed higher than 2 meters above ground
-        if mean(height)>3
-            height = (filedata{3} - 21.1)/100;
-        end
-    end
-
-    % Measured mGal units converted to μGal.
-    if isempty(calibration_factor)
-        grav = filedata{4}*1000;
-    else
-        grav = filedata{4}*1000*calibration_factor;
-    end
-    
     % Least Square Adjustment - deterministic model
     n0 = length(points); % number of measurements taken
     k = length(uniquepoints); % number of measured levels
@@ -826,22 +796,6 @@ function [output_linear] = gradient_linear(input_file, ...
     % as starting
     A(:,1)= [];
     
-    % load errors from filedata
-    ERR = filedata{5}*1000;
-    
-    % when scaled to series the values usually
-    % resemble the value of uncertainty (usually 2 to 7 μGal)
-    if SD_scale_information == 0
-        ERR = ERR;
-    
-    % Standard deviation scaling
-    % when scaled to seconds, the values usually
-    % resemble the value of 1Hz freq uncertainty (usually more than 15
-    % μGal) thus having to be rescaled to seconds.
-    elseif SD_scale_information == 1
-        ERR = ERR/sqrt(60);
-    end
-
     % weights
     weight = mean(ERR)./ERR;
 
@@ -1094,59 +1048,29 @@ function [output_linear] = gradient_linear(input_file, ...
     output_linear.gradient.std_num = sigma_av_Wzz;
 end
 
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % gradient as a function of height and time
 function [output_function] = gradient_function(input_file, ...
                                                header_lines, ...
+                                               instrument_type, ...
                                                calibration_factor, ...
                                                SD_scale_information, ...
                                                input_units_option, ...
                                                significance,...
                                                SD00)
-    % file reading
-    fileID = fopen(input_file);
-    % read data from file
-    filedata = textscan (fileID, '%f %s %f %f %f %f %f %f %f %f %f %9s %f %f %f %s', 'headerLines', header_lines);
+        % file reading
+    if instrument_type == 'CG5'
+        [points,dtime,dn,YY,height,grav,ERR] = read_CG5(input_file,header_lines,calibration_factor,SD_scale_information,input_units_option);
+    elseif instrument_type == 'CG6'
+        [points,dtime,height,grav,ERR] = read_CG6(input_file,header_lines,calibration_factor,SD_scale_information,input_units_option);
+    end    
 
-    % point ID information
-    points = string(filedata{2});
-    % get unique points (string)
     uniquepoints = string(unique(points,'stable'));
     pts_num = str2double(uniquepoints(1));
     if isnan(pts_num) == 1
         measured_station_ID = uniquepoints(1);
     elseif isnan(pts_num) == 0
         measured_station_ID = num2str(pts_num,'%8.2f');
-    end
-
-    % datetime numeric information for each measurement - dn (datenum)
-    dn = filedata{13};
-    % time information - dtime (datetime) extracted from individual
-    % information in file
-    YY = filedata{15};
-    dtime_t = datetime(dn,'ConvertFrom','datenum');
-    MM = month(dtime_t); dd = day(dtime_t); hh = hour(dtime_t); mm = minute(dtime_t); ss = second(dtime_t);
-    dtime = datetime(YY,MM,dd,hh,mm,ss);
-    
-    % height above surface (mark) - converted to metres. For CG5 the sensor
-    % is located 21.1 cm below the top according to manual. The height in
-    % the spreadsheet is usually a height difference between top of the
-    % gravimeter and ground mark at individual position
-
-    if input_units_option == 1
-        height = (filedata{3} - 21.1)/100;
-    elseif input_units_option == 2
-        height = (filedata{3} - 0.211);
-    end
-
-    % Measured mGal units converted to μGal.
-    grav = filedata{4}*1000; 
-    
-    if isempty(calibration_factor)
-        grav = grav;
-    else
-        grav = grav*calibration_factor;
     end
 
     % deterministic model
@@ -1180,22 +1104,7 @@ function [output_function] = gradient_function(input_file, ...
     end
 
     [~,lgt] = size(A);
-    % load errors from filedata and transfer from mGal to μGal
-    ERR = filedata{5}*1000;
-    
-    % when scaled to series the values usually
-    % resemble the value of uncertainty (usually 2 to 7 μGal)
-    if SD_scale_information == 0
-        ERR = ERR;
-
-    % Standard deviation scaling
-    % when scaled to seconds, the values usually
-    % resemble the value of 1Hz freq uncertainty (usually more than 15
-    % μGal) thus having to be rescaled to series.
-    elseif SD_scale_information == 1
-        ERR = ERR/sqrt(60);
-    end
-
+   
     % weights
     weight = mean(ERR)./ERR;
     % weight matrix
@@ -1344,7 +1253,6 @@ function [output_function] = gradient_function(input_file, ...
     % statistic test representing a Student's distribution
     Tau2_new = adjusted_parameters_new(end-polynomial_degree_time_final)/SD_theta_new(end-polynomial_degree_time_final);
 
-
     if hasLicenseForToolbox == 0 % if working without statistic toolbox
 
         if abs(Tau2_new) < sqrt(students_inverse_approximate) % intentionally decreased for 2nd test since one testing has already has been performed
@@ -1467,18 +1375,19 @@ end
 % Gravity differences _______________________________________________________________
 function [output_gravity_diff] = gravity_differences(input_file, ...
                                                      header_lines, ...
+                                                     instrument_type, ...
                                                      calibration_factor, ...
                                                      SD_scale_information, ...
                                                      input_units_option, ...
                                                      significance,...
                                                      SD00)
     % file reading
-    fileID = fopen(input_file);
-    % read data from file
-    filedata = textscan (fileID, '%f %s %f %f %f %f %f %f %f %f %f %9s %f %f %f %s', 'headerLines', header_lines);
+    if instrument_type == 'CG5'
+        [points,dtime,dn,YY,height,grav,ERR] = read_CG5(input_file,header_lines,calibration_factor,SD_scale_information,input_units_option);
+    elseif instrument_type == 'CG6'
+        [points,dtime,height,grav,ERR] = read_CG6(input_file,header_lines,calibration_factor,SD_scale_information,input_units_option);
+    end    
 
-    % point ID information
-    points = string(filedata{2});
     % get unique points (string)
     uniquepoints = string(unique(points,'stable'));
     pts_num = str2double(uniquepoints);
@@ -1489,39 +1398,6 @@ function [output_gravity_diff] = gravity_differences(input_file, ...
         elseif isnan(pts_num(j)) == 0
             measured_points(j,1) = string(num2str(pts_num(j),'%8.2f'));
         end
-    end
-
-    % datetime numeric information for each measurement - dn (datenum)
-    dn = filedata{13};
-    % time information - dtime (datetime) extracted from individual
-    % information in file
-    YY = filedata{15};
-    dtime_t = datetime(dn,'ConvertFrom','datenum');
-    MM = month(dtime_t); dd = day(dtime_t); hh = hour(dtime_t); mm = minute(dtime_t); ss = second(dtime_t);
-    dtime = datetime(YY,MM,dd,hh,mm,ss);
-    
-    % height above surface (mark) - converted to metres. For CG5 the sensor
-    % is located 21.1 cm below the top according to manual. The height in
-    % the spreadsheet is usually a height difference between top of the
-    % gravimeter and ground mark at individual position
-
-    if input_units_option == 1
-        height = (filedata{3} - 21.1)/100;
-    elseif input_units_option == 2
-        height = (filedata{3} - 0.211);
-        % check if height units are correctly assigned, assuming gravimeter
-        % cannot be placed higher than 3 meters above ground. meters are
-        % switched to centimeters
-        if mean(height) > 3
-            height = (filedata{3} - 21.1)/100;
-        end
-    end
-
-    % Measured mGal units converted to μGal.
-    if isempty(calibration_factor)
-        grav = filedata{4}*1000;
-    else
-        grav = filedata{4}*1000*calibration_factor;
     end
 
     % reducing measured values to a point using normal gradient
@@ -1547,36 +1423,15 @@ function [output_gravity_diff] = gravity_differences(input_file, ...
     for i = k+2:k+1+polynomial_degree;
        A(:,i) = (dn - dn(1)).^(i -(k+1));
     end
-
     % regularization - by default first column is removed to fix position 1
     % as starting
     A(:,1)= [];
-    
-    % load errors from filedata
-    ERR = filedata{5}*1000;
-    
-    % when scaled to series the values usually
-    % resemble the value of uncertainty (usually 2 to 7 μGal)
-    if SD_scale_information == 0
-        ERR = ERR;
-    
-    % Standard deviation scaling
-    % when scaled to seconds, the values usually
-    % resemble the value of 1Hz freq uncertainty (usually more than 15
-    % μGal) thus having to be rescaled to seconds.
-    elseif SD_scale_information == 1
-        ERR = ERR/sqrt(60);
-    end
-
     % weights
     weight = mean(ERR)./ERR;
-
     % weight matrix
     P = diag(weight);
-
     % Covariance matrix of measurements
     Q = P^-1; C = (SD00^2)*Q;
-    
     % parameter adjustment usint LSE formulas
     adjusted_parameters = (A'/C*A)\A'/C*grav;
     % measurement errors to adjusted parameters
@@ -1587,7 +1442,6 @@ function [output_gravity_diff] = gravity_differences(input_file, ...
     C_theta = (rmse1^2)*inv(A'*inv(C)*A);
     % standard deviation of adjusted parameters
     SD_theta = sqrt(diag(C_theta));
-
     % drift coeficients
     drift_koef = adjusted_parameters(end-polynomial_degree:end);
     % drift section of Jacobi matrix
@@ -1598,7 +1452,7 @@ function [output_gravity_diff] = gravity_differences(input_file, ...
     test = res_drift + v;
     % average drift value to subtract later
     res_drift_av = mean(res_drift);
-    
+
     % outliers testing
     if significance == 1
         significance_level = 0.32;
@@ -1712,3 +1566,132 @@ function [output_gravity_diff] = gravity_differences(input_file, ...
     output_gravity_diff.adjusted.differences = adjusted_parameters_new(1:end-(polynomial_degree_new+1));
     output_gravity_diff.adjusted.std = SD_theta_new(1:end-(polynomial_degree_new+1));
 end
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Read CG5 data _______________________________________________________________
+function [points,dtime,dn,YY,height,grav,ERR] = read_CG5(input_file, ...
+                                          header_lines, ...
+                                          calibration_factor, ...
+                                          SD_scale_information, ...
+                                          input_units_option)
+    % file reading
+    fileID = fopen(input_file);
+    % read data from file
+    filedata = textscan (fileID, '%f %s %f %f %f %f %f %f %f %f %f %9s %f %f %f %s', 'headerLines', header_lines);
+
+    % point ID information
+    points = string(filedata{2});
+    % get unique points (string)
+
+    % datetime numeric information for each measurement - dn (datenum)
+    dn = filedata{13};
+    % time information - dtime (datetime) extracted from individual
+    % information in file
+    YY = filedata{15};
+    dtime_t = datetime(dn,'ConvertFrom','datenum');
+    MM = month(dtime_t); dd = day(dtime_t); hh = hour(dtime_t); mm = minute(dtime_t); ss = second(dtime_t);
+    dtime = datetime(YY,MM,dd,hh,mm,ss);
+    
+    % height above surface (mark) - converted to metres. For CG5 the sensor
+    % is located 21.1 cm below the top according to manual. The height in
+    % the spreadsheet is usually a height difference between top of the
+    % gravimeter and ground mark at individual position
+
+    if input_units_option == 1
+        height = (filedata{3} - 21.1)/100;
+    elseif input_units_option == 2
+        height = (filedata{3} - 0.211);
+        % check if height units are correctly assigned, assuming gravimeter
+        % cannot be placed higher than 3 meters above ground. meters are
+        % switched to centimeters
+        if mean(height) > 3
+            height = (filedata{3} - 21.1)/100;
+        end
+    end
+    % Measured mGal units converted to μGal and calibrated using user
+    % provided factor, if empty the calibration factor is not used.
+    if isempty(calibration_factor)
+        grav = filedata{4}*1000;
+    else
+        grav = filedata{4}*1000*calibration_factor;
+    end
+    % load errors from filedata
+    ERR = filedata{5}*1000;
+    % when scaled to series the values usually
+    % resemble the value of uncertainty (usually 2 to 7 μGal)
+    if SD_scale_information == 0
+        ERR = ERR;
+    
+    % Standard deviation scaling
+    % when scaled to seconds, the values usually
+    % resemble the value of 1Hz freq uncertainty (usually more than 15
+    % μGal) thus having to be rescaled to seconds.
+    elseif SD_scale_information == 1
+        ERR = ERR/sqrt(60);
+    end
+end
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Read CG6 data _______________________________________________________________
+% function [points,dtime,height,grav,ERR] = read_CG6(input_file, ...
+%                                           header_lines, ...
+%                                           calibration_factor, ...
+%                                           SD_scale_information, ...
+%                                           input_units_option)
+%     % file reading
+%     fileID = fopen(input_file);
+%     % read data from file
+%     filedata = textscan (fileID, '%f %s %f %f %f %f %f %f %f %f %f %9s %f %f %f %s', 'headerLines', header_lines);
+% 
+%     % point ID information
+%     points = string(filedata{2});
+%     % get unique points (string)
+% 
+%     % datetime numeric information for each measurement - dn (datenum)
+%     dn = filedata{13};
+%     % time information - dtime (datetime) extracted from individual
+%     % information in file
+%     YY = filedata{15};
+%     dtime_t = datetime(dn,'ConvertFrom','datenum');
+%     MM = month(dtime_t); dd = day(dtime_t); hh = hour(dtime_t); mm = minute(dtime_t); ss = second(dtime_t);
+%     dtime = datetime(YY,MM,dd,hh,mm,ss);
+% 
+%     % height above surface (mark) - converted to metres. For CG5 the sensor
+%     % is located 21.1 cm below the top according to manual. The height in
+%     % the spreadsheet is usually a height difference between top of the
+%     % gravimeter and ground mark at individual position
+% 
+%     if input_units_option == 1
+%         height = (filedata{3} - 21.1)/100;
+%     elseif input_units_option == 2
+%         height = (filedata{3} - 0.211);
+%         % check if height units are correctly assigned, assuming gravimeter
+%         % cannot be placed higher than 3 meters above ground. meters are
+%         % switched to centimeters
+%         if mean(height) > 3
+%             height = (filedata{3} - 21.1)/100;
+%         end
+%     end
+%     % Measured mGal units converted to μGal and calibrated using user
+%     % provided factor, if empty the calibration factor is not used.
+%     if isempty(calibration_factor)
+%         grav = filedata{4}*1000;
+%     else
+%         grav = filedata{4}*1000*calibration_factor;
+%     end
+%     % load errors from filedata
+%     ERR = filedata{5}*1000;
+%     % when scaled to series the values usually
+%     % resemble the value of uncertainty (usually 2 to 7 μGal)
+%     if SD_scale_information == 0
+%         ERR = ERR;
+% 
+%     % Standard deviation scaling
+%     % when scaled to seconds, the values usually
+%     % resemble the value of 1Hz freq uncertainty (usually more than 15
+%     % μGal) thus having to be rescaled to seconds.
+%     elseif SD_scale_information == 1
+%         ERR = ERR/sqrt(60);
+%     end
+% end

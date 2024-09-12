@@ -25,6 +25,8 @@ function gradmap(GUI_par, ...               % variables used to switch between c
     ...
     input_units_option, ...                 % specifies height unit that operator used during measurements '1' for centimetres and '2' for metres [double]. User should store height measured to the upper edge of the instrument to correctly assign 
     ...                                 
+    instrument_type,...                     %specifies which instrument was used to use appropriate reading of data: current options are 'CG5' or 'CG6' [string]
+    ...
     header_lines, ...                       % number of headerlines in file to skip [double]
     ...
     SD_scale_information,...                % information whether Standard Deviation is scaled to 1 second or 1 minute measurement. Values more than 0.15 - 0.2 might indicate, SD is provides accuracy of 1s measurement. '0' for standard deviation scaled to minute measurement and '1' for 1 second scaled standard deviation [double].
@@ -73,14 +75,14 @@ function gradmap(GUI_par, ...               % variables used to switch between c
             leftboundary = 0.04;
             % rightboundary = 0.96;
 
-            panel1lower_boundary = 0.665;
-            panel1height = 0.33;
+            panel1lower_boundary = 0.64;
+            panel1height = 0.35;
             
-            panel2lower_boundary = 0.355;
-            panel2height = 0.305;
+            panel2lower_boundary = 0.335;
+            panel2height = 0.30;
 
             panel3lower_boundary = 0.07;
-            panel3height = 0.28;
+            panel3height = 0.26;
             
             panelheight = 510; % in pixels
             windowsize5 = 20/panelheight; % in pixels
@@ -97,55 +99,65 @@ function gradmap(GUI_par, ...               % variables used to switch between c
             'backgroundcolor',[R1 G1 B1],'HighlightColor',[R2 G2 B2],'tag',...
             'Locpanel','FontName','Georgia','FontSize',fs+1.5);
     
-            % Panel na vyber suboru   
-            uicontrol(M,'Units','normalized','position',[leftboundary+0.02 0.885 0.3 windowsize7],...
+            % choose file panel  
+            uicontrol(M,'Units','normalized','position',[leftboundary+0.02 0.89 0.3 windowsize7],...
                     'Style','pushbutton','string','Choose file(s)',...
                     'tag','push_input_path','Callback','gradmap input_path','FontName','Trebuchet MS','FontSize',fs);
             
             % show filename(s) 
-            uicontrol(M,'Units','normalized', 'Position',[leftboundary+0.32 0.885 0.55 windowsize5],...
+            uicontrol(M,'Units','normalized', 'Position',[leftboundary+0.32 0.89 0.55 windowsize5],...
                 'backgroundcolor',[R1 G1 B1],'tag','show_local_path',...
                 'Style','Text','string','','FontName','Trebuchet MS','FontSize',fs-0.5);
 
+            % instrument type text
+            uicontrol(M,'Units','normalized', 'Position',[leftboundary+0.02 0.835 0.26 windowsize6],...
+                         'backgroundcolor',[R1 G1 B1],...
+                         'Style','Text','string','instrument type','FontName','Trebuchet MS','FontSize',fs);
+
             % Number of header lines text
-            uicontrol(M,'Units','normalized', 'Position',[leftboundary+0.02 0.82 0.38 windowsize6],...
+            uicontrol(M,'Units','normalized', 'Position',[leftboundary+0.02 0.79 0.38 windowsize6],...
                          'backgroundcolor',[R1 G1 B1],...
                          'Style','Text','string','number of header lines','FontName','Trebuchet MS','FontSize',fs);
     
-            % Unit text
-            uicontrol(M,'Units','normalized', 'Position',[leftboundary+0.02 0.77 0.2 windowsize6],...
+            % height unit text
+            uicontrol(M,'Units','normalized', 'Position',[leftboundary+0.02 0.74 0.2 windowsize6],...
                          'backgroundcolor',[R1 G1 B1],...
                          'Style','Text','string','height units','FontName','Trebuchet MS','FontSize',fs);
 
             % Uncertainty text
-            uicontrol(M,'Units','normalized', 'Position',[leftboundary+0.02 0.725 0.5 windowsize5],...
+            uicontrol(M,'Units','normalized', 'Position',[leftboundary+0.02 0.698 0.5 windowsize5],...
                          'backgroundcolor',[R1 G1 B1],...
                          'Style','Text','string','instrument uncertainty in µGal','FontName','Trebuchet MS','FontSize',fs);
 
             % Standard deviation scaling text
-            uicontrol(M,'Units','normalized', 'Position',[leftboundary+0.02 0.675 0.42 windowsize5],...
+            uicontrol(M,'Units','normalized', 'Position',[leftboundary+0.02 0.65 0.42 windowsize5],...
                          'backgroundcolor',[R1 G1 B1],...
                          'Style','Text','string','standard deviation scaling','FontName','Trebuchet MS','FontSize',fs);
 
+            % instrument used option window
+            uicontrol(M,'Units','normalized','position',[leftboundary+0.74 0.835 0.12 0.055],...
+                        'Style','Popupmenu','tag','instrument_option',...
+                        'string','CG5|CG6','value',1,'BackgroundColor','white','FontName','Trebuchet MS','FontSize',fs-0.5);
+
             % number of header lines window
-            uicontrol(M,'Units','normalized','Position',[leftboundary+0.74 0.835 0.1 windowsize5],...
+            uicontrol(M,'Units','normalized','Position',[leftboundary+0.74 0.8 0.1 windowsize5],...
                         'Style','Edit','tag','edit_pocet_riadkov',...
                         'string','34','backgroundcolor','white',...
                         'FontName','Trebuchet MS','FontName','Trebuchet MS','FontSize',fs-0.5);
     
             % units option window
-            uicontrol(M,'Units','normalized','position',[leftboundary+0.74 0.77 0.12 0.055],...
+            uicontrol(M,'Units','normalized','position',[leftboundary+0.74 0.74 0.12 0.055],...
                         'Style','Popupmenu','tag','units_option',...
                         'string','cm|m','value',1,'BackgroundColor','white','FontName','Trebuchet MS','FontSize',fs-0.5);
 
             % accuracy window
-            uicontrol(M,'Units','normalized','Position',[leftboundary+0.74 0.735 0.1 windowsize5],...
+            uicontrol(M,'Units','normalized','Position',[leftboundary+0.74 0.705 0.1 windowsize5],...
                         'Style','Edit','tag','edit_unc',...
                         'string','5','backgroundcolor','white',...
                         'FontName','Trebuchet MS','FontName','Trebuchet MS','FontSize',fs-0.5);
             
             % Standard deviation scaling window
-            uicontrol(M,'Units','normalized','position',[leftboundary+0.7 0.67 0.18 0.055],...
+            uicontrol(M,'Units','normalized','position',[leftboundary+0.7 0.645 0.18 0.055],...
                         'Style','Popupmenu','tag','SD_scaling',...
                         'string','series|second','value',1,'BackgroundColor','white','FontName','Trebuchet MS','FontSize',fs-0.5);
 
@@ -157,54 +169,54 @@ function gradmap(GUI_par, ...               % variables used to switch between c
 
             % text part
             % number of measured positions text
-            uicontrol(M,'Units','normalized', 'Position',[leftboundary+0.02 0.565 0.52 windowsize5],...
+            uicontrol(M,'Units','normalized', 'Position',[leftboundary+0.02 0.545 0.52 windowsize5],...
                          'backgroundcolor',[R1 G1 B1],...
                          'Style','Text','string','number of measured positions','FontName','Trebuchet MS','FontSize',fs);
             
             % rejection threshold text
-            uicontrol(M,'Units','normalized', 'Position',[leftboundary+0.02 0.515 0.45 windowsize5],...
+            uicontrol(M,'Units','normalized', 'Position',[leftboundary+0.02 0.495 0.45 windowsize5],...
                          'backgroundcolor',[R1 G1 B1],...
                          'Style','Text','string','rejection threshold in µGal','FontName','Trebuchet MS','FontSize',fs);
 
             % gradient format text
-            uicontrol(M,'Units','normalized', 'Position',[leftboundary+0.02 0.465 0.28 windowsize5],...
+            uicontrol(M,'Units','normalized', 'Position',[leftboundary+0.02 0.445 0.28 windowsize5],...
                          'backgroundcolor',[R1 G1 B1],...
                          'Style','Text','string','gradient format','FontName','Trebuchet MS','FontSize',fs);
 
             % significance level text
-            uicontrol(M,'Units','normalized', 'Position',[leftboundary+0.02 0.415 0.29 windowsize5],...
+            uicontrol(M,'Units','normalized', 'Position',[leftboundary+0.02 0.395 0.29 windowsize5],...
                          'backgroundcolor',[R1 G1 B1],...
                          'Style','Text','string','significance level','FontName','Trebuchet MS','FontSize',fs);
 
             % calibration factor text
-            uicontrol(M,'Units','normalized', 'Position',[leftboundary+0.02 0.365 0.3 windowsize5],...
+            uicontrol(M,'Units','normalized', 'Position',[leftboundary+0.02 0.345 0.3 windowsize5],...
                          'backgroundcolor',[R1 G1 B1],...
                          'Style','Text','string','calibration factor','FontName','Trebuchet MS','FontSize',fs);
 
             % window part
             % number of measured positions
-            uicontrol(M,'Units','normalized','position',[leftboundary+0.725 0.57 0.15 windowsize5],...
+            uicontrol(M,'Units','normalized','position',[leftboundary+0.725 0.55 0.15 windowsize5],...
                         'Style','Popupmenu','tag','number_measured_levels',...
                         'string','2|3|from file','value',3,'BackgroundColor','white','FontName','Trebuchet MS','FontSize',fs-0.5);
 
             % rejection threshold window
-            uicontrol(M,'Units','normalized','Position',[leftboundary+0.74 0.52 0.1 windowsize5],...
+            uicontrol(M,'Units','normalized','Position',[leftboundary+0.74 0.50 0.1 windowsize5],...
                         'Style','Edit','tag','rejection_threshold',...
                         'string','5','backgroundcolor','white',...
                         'FontName','Trebuchet MS','FontName','Trebuchet MS','FontSize',fs-0.5);
 
             % gradient result format
-            uicontrol(M,'Units','normalized','position',[leftboundary+0.7 0.474 0.18 windowsize5],...
+            uicontrol(M,'Units','normalized','position',[leftboundary+0.7 0.452 0.18 windowsize5],...
                         'Style','Popupmenu','tag','gradient_option',...
                         'string','linear|function','value',1,'BackgroundColor','white','FontName','Trebuchet MS','FontSize',fs-0.5);
 
             % significance level
-            uicontrol(M,'Units','normalized','position',[leftboundary+0.7 0.424 0.18 windowsize5],...
+            uicontrol(M,'Units','normalized','position',[leftboundary+0.7 0.402 0.18 windowsize5],...
                         'Style','Popupmenu','tag','significance_tag',...
                         'string','1-σ (68% confidence bounds) |2-σ (95% confidence bounds)|3-σ (99.7% confidence bounds)','value',2,'BackgroundColor','white','FontName','Trebuchet MS','FontSize',fs-0.5);
 
             % calibration factor window
-            uicontrol(M,'Units','normalized','Position',[leftboundary+0.7 0.372 0.18 windowsize5],...
+            uicontrol(M,'Units','normalized','Position',[leftboundary+0.7 0.352 0.18 windowsize5],...
                         'Style','Edit','tag','calibration',...
                         'string','','backgroundcolor','white',...
                         'FontName','Trebuchet MS','FontName','Trebuchet MS','FontSize',fs-0.5);
@@ -215,42 +227,42 @@ function gradmap(GUI_par, ...               % variables used to switch between c
             'Locpanel','FontName','Georgia','FontSize',fs+1.5);
 
             % Panel na vyber suboru
-            uicontrol(M,'Units','normalized','position',[leftboundary+0.02 0.24 0.35 windowsize7],...
+            uicontrol(M,'Units','normalized','position',[leftboundary+0.02 0.23 0.35 windowsize7],...
                     'Style','pushbutton','string','Create report file',...
                     'tag','push_report_file_name','Callback','gradmap report_filename','FontName','Trebuchet MS','FontSize',fs);
 
             % Vypis nazvu vybraneho suboru
-            uicontrol(M,'Units','normalized', 'Position',[leftboundary+0.45 0.235 0.45 windowsize5],...
+            uicontrol(M,'Units','normalized', 'Position',[leftboundary+0.45 0.225 0.45 windowsize5],...
                 'backgroundcolor',[R1 G1 B1],'tag','show_report_path',...
                 'Style','Text','string','','FontName','Trebuchet MS','FontSize',fs-1),'borders';
 
             % Ulozenie grafickych vystupov spracovania text
-            uicontrol(M,'Units','normalized', 'Position',[leftboundary+0.02 0.175 0.4 windowsize6],...
+            uicontrol(M,'Units','normalized', 'Position',[leftboundary+0.02 0.17 0.4 windowsize6],...
                          'backgroundcolor',[R1 G1 B1],...
                          'Style','Text','string','store processing figures',...
                          'FontName','Trebuchet MS','FontSize',fs);
 
             % text for saving summary of all calculations in an excel table 
-            uicontrol(M,'Units','normalized', 'Position',[leftboundary+0.02 0.125 0.38 windowsize6],...
+            uicontrol(M,'Units','normalized', 'Position',[leftboundary+0.02 0.12 0.38 windowsize6],...
                          'backgroundcolor',[R1 G1 B1],...
                          'Style','Text','string','save summary in table',...
                          'FontName','Trebuchet MS','FontSize',fs);
 
             % text for saving gravity differences instead of gradient for
             % all calculations
-            uicontrol(M,'Units','normalized', 'Position',[leftboundary+0.02 0.085 0.53 windowsize5],...
+            uicontrol(M,'Units','normalized', 'Position',[leftboundary+0.02 0.08 0.53 windowsize5],...
                          'backgroundcolor',[R1 G1 B1],...
                          'Style','Text','string','save gravity differences instead',...
                          'FontName','Trebuchet MS','FontSize',fs);
 
             % button for saving graphic output
-            uicontrol(M,'Units','normalized', 'Position',[leftboundary+0.77 0.18 0.09 windowsize7],...
+            uicontrol(M,'Units','normalized', 'Position',[leftboundary+0.77 0.175 0.09 windowsize7],...
                         'BackgroundColor',[R1 G1 B1],...
                         'Style','Checkbox','tag','check_graphics',...
                         'string','','value',0);
             
             % Button for saving a summary (table) of all calculated values
-            uicontrol(M,'Units','normalized', 'Position',[leftboundary+0.77 0.13 0.09 windowsize7],...
+            uicontrol(M,'Units','normalized', 'Position',[leftboundary+0.77 0.125 0.09 windowsize7],...
                         'BackgroundColor',[R1 G1 B1],...
                         'Style','Checkbox','tag','check_summary',...
                         'string','','value',1);
@@ -258,7 +270,7 @@ function gradmap(GUI_par, ...               % variables used to switch between c
             % button for saving gravity differences instead of gradient for
             % all calculations
 
-            uicontrol(M,'Units','normalized', 'Position',[leftboundary+0.77 0.08 0.09 windowsize7],...
+            uicontrol(M,'Units','normalized', 'Position',[leftboundary+0.77 0.075 0.09 windowsize7],...
                         'BackgroundColor',[R1 G1 B1],...
                         'Style','Checkbox','tag','check_gravity_dif',...
                         'string','','value',0);
@@ -278,7 +290,7 @@ function gradmap(GUI_par, ...               % variables used to switch between c
 
             % Click on choose input files button ---------------------------------------
             case 'input_path' 
-                [data_filename,data_path]=uigetfile({'*.txt';'*.*'},'Select measurement file(s)','MultiSelect','on');
+                [data_filename,data_path]=uigetfile({'*.txt';'*.dat';'*.*'},'Select measurement file(s)','MultiSelect','on');
 
                 if iscell(data_filename)
                     nfiles = length(data_filename);
@@ -350,8 +362,14 @@ function gradmap(GUI_par, ...               % variables used to switch between c
                     % we ought to know whether Standard deviation has
                     % already been scaled properly
                     SD_scale_information = SD_scaling - 1;
-                    
-                    instrument_type = 'CG5';
+                    % get instrument info
+                    instrument_option = get(findobj('tag','instrument_option'),'value');
+
+                    if instrument_option == 1
+                        instrument_type = 'CG5';
+                    elseif instrument_option == 2
+                        instrument_type = 'CG6';
+                    end
 
                     % get num of measured levels from GUI
                     measured_levels = get(findobj('tag','number_measured_levels'),'value');
@@ -380,9 +398,9 @@ function gradmap(GUI_par, ...               % variables used to switch between c
 
                     if measured_levels == 1
                         number_of_measured_levels = 2;
-                    elseif measured_levels == 2;
+                    elseif measured_levels == 2
                         number_of_measured_levels = 3;
-                    elseif measured_levels == 3;
+                    elseif measured_levels == 3
                         number_of_measured_levels = [];
                     end
 
@@ -392,6 +410,7 @@ function gradmap(GUI_par, ...               % variables used to switch between c
                 elseif GUI == 0
                     
                     input_files = input_files;
+                    instrument_type = instrument_type;
                     header_lines = header_lines;
                     input_units_option = input_units_option;
                     SD00 = uncertainty;
@@ -757,7 +776,7 @@ function [output_linear] = gradient_linear(input_file, ...
     if instrument_type == 'CG5'
         [points,dtime,dn,YY,height,grav,ERR] = read_CG5(input_file,header_lines,calibration_factor,SD_scale_information,input_units_option);
     elseif instrument_type == 'CG6'
-        [points,dtime,height,grav,ERR] = read_CG6(input_file,header_lines,calibration_factor,SD_scale_information,input_units_option);
+        [points,dtime,dn,YY,height,grav,ERR] = read_CG6(input_file,header_lines,calibration_factor);
     end
 
     % get unique points (string)
@@ -1062,7 +1081,7 @@ function [output_function] = gradient_function(input_file, ...
     if instrument_type == 'CG5'
         [points,dtime,dn,YY,height,grav,ERR] = read_CG5(input_file,header_lines,calibration_factor,SD_scale_information,input_units_option);
     elseif instrument_type == 'CG6'
-        [points,dtime,height,grav,ERR] = read_CG6(input_file,header_lines,calibration_factor,SD_scale_information,input_units_option);
+        [points,dtime,dn,YY,height,grav,ERR] = read_CG6(input_file,header_lines,calibration_factor);
     end    
 
     uniquepoints = string(unique(points,'stable'));
@@ -1385,7 +1404,7 @@ function [output_gravity_diff] = gravity_differences(input_file, ...
     if instrument_type == 'CG5'
         [points,dtime,dn,YY,height,grav,ERR] = read_CG5(input_file,header_lines,calibration_factor,SD_scale_information,input_units_option);
     elseif instrument_type == 'CG6'
-        [points,dtime,height,grav,ERR] = read_CG6(input_file,header_lines,calibration_factor,SD_scale_information,input_units_option);
+        [points,dtime,dn,YY,height,grav,ERR] = read_CG6(input_file,header_lines,calibration_factor);
     end    
 
     % get unique points (string)
@@ -1420,6 +1439,7 @@ function [output_gravity_diff] = gravity_differences(input_file, ...
 
     % Jacobi matrix, drift part
     A(:,k+1) = 1;
+
     for i = k+2:k+1+polynomial_degree;
        A(:,i) = (dn - dn(1)).^(i -(k+1));
     end
@@ -1581,7 +1601,9 @@ function [points,dtime,dn,YY,height,grav,ERR] = read_CG5(input_file, ...
 
     % point ID information
     points = string(filedata{2});
-    % get unique points (string)
+
+    % NOTE: CG5 has a "weird" time information storing - the following
+    % steps are used to get a datetime from 
 
     % datetime numeric information for each measurement - dn (datenum)
     dn = filedata{13};
@@ -1634,64 +1656,42 @@ end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Read CG6 data _______________________________________________________________
-% function [points,dtime,height,grav,ERR] = read_CG6(input_file, ...
-%                                           header_lines, ...
-%                                           calibration_factor, ...
-%                                           SD_scale_information, ...
-%                                           input_units_option)
-%     % file reading
-%     fileID = fopen(input_file);
-%     % read data from file
-%     filedata = textscan (fileID, '%f %s %f %f %f %f %f %f %f %f %f %9s %f %f %f %s', 'headerLines', header_lines);
-% 
-%     % point ID information
-%     points = string(filedata{2});
-%     % get unique points (string)
-% 
-%     % datetime numeric information for each measurement - dn (datenum)
-%     dn = filedata{13};
-%     % time information - dtime (datetime) extracted from individual
-%     % information in file
-%     YY = filedata{15};
-%     dtime_t = datetime(dn,'ConvertFrom','datenum');
-%     MM = month(dtime_t); dd = day(dtime_t); hh = hour(dtime_t); mm = minute(dtime_t); ss = second(dtime_t);
-%     dtime = datetime(YY,MM,dd,hh,mm,ss);
-% 
-%     % height above surface (mark) - converted to metres. For CG5 the sensor
-%     % is located 21.1 cm below the top according to manual. The height in
-%     % the spreadsheet is usually a height difference between top of the
-%     % gravimeter and ground mark at individual position
-% 
-%     if input_units_option == 1
-%         height = (filedata{3} - 21.1)/100;
-%     elseif input_units_option == 2
-%         height = (filedata{3} - 0.211);
-%         % check if height units are correctly assigned, assuming gravimeter
-%         % cannot be placed higher than 3 meters above ground. meters are
-%         % switched to centimeters
-%         if mean(height) > 3
-%             height = (filedata{3} - 21.1)/100;
-%         end
-%     end
-%     % Measured mGal units converted to μGal and calibrated using user
-%     % provided factor, if empty the calibration factor is not used.
-%     if isempty(calibration_factor)
-%         grav = filedata{4}*1000;
-%     else
-%         grav = filedata{4}*1000*calibration_factor;
-%     end
-%     % load errors from filedata
-%     ERR = filedata{5}*1000;
-%     % when scaled to series the values usually
-%     % resemble the value of uncertainty (usually 2 to 7 μGal)
-%     if SD_scale_information == 0
-%         ERR = ERR;
-% 
-%     % Standard deviation scaling
-%     % when scaled to seconds, the values usually
-%     % resemble the value of 1Hz freq uncertainty (usually more than 15
-%     % μGal) thus having to be rescaled to seconds.
-%     elseif SD_scale_information == 1
-%         ERR = ERR/sqrt(60);
-%     end
-% end
+% height is measured from the point to the bottom of gravimeter, this has
+% to be revised in the future
+
+function [points,dtime,dn,YY,height,grav,ERR] = read_CG6(input_file, ...
+                                          header_lines, ...
+                                          calibration_factor)
+    % file reading
+    fileID = fopen(input_file);
+    % read data from file
+    filedata = textscan (fileID, '%s %d-%d-%d %d:%d:%d %f %f %s	%f %f %f %f	%f %f %f %f %f %f %f %f %f %f %s %s %s %f','Delimiter','\t' ,'headerLines', header_lines);
+
+    % point ID information
+    points = string(filedata{1});
+    
+    % time information - dtime (datetime) extracted from individual
+    % information in file
+    YY = filedata{2};
+    dtime = datetime(filedata{2},filedata{3},filedata{4},filedata{5},filedata{5},filedata{6});
+
+        % check if height units are correctly assigned, assuming gravimeter
+        % cannot be placed higher than 3 meters above ground. meters are
+        % switched to centimeters
+        if mean(filedata{21}) > 3
+            height = (filedata{21} + 6.58)/100;
+        elseif mean(filedata{21}) < 3
+            height = (filedata{21} + 0.0658);
+    end
+
+    % Measured mGal units converted to μGal and calibrated using user
+    % provided factor, if empty the calibration factor is not used.
+    if isempty(calibration_factor)
+        grav = filedata{8}*1000;
+    else
+        grav = filedata{8}*1000*calibration_factor;
+    end
+    % load errors from filedata
+    ERR = filedata{11}*1000;
+    dn = datenum(dtime);
+end

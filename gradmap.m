@@ -1708,7 +1708,7 @@ function [points,dtime,dn,YY,height,grav,ERR] = read_CG6(input_file, ...
     % time information - dtime (datetime) extracted from individual
     % information in file
     YY = filedata{2};
-    dtime = datetime(filedata{2},filedata{3},filedata{4},filedata{5},filedata{5},filedata{6});
+    dtime = datetime(filedata{2},filedata{3},filedata{4},filedata{5},filedata{6},filedata{7});
 
         % check if height units are correctly assigned, assuming gravimeter
         % cannot be placed higher than 3 meters above ground. meters are

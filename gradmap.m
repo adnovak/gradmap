@@ -137,7 +137,8 @@ function gradmap(GUI_par, ...               % variables used to switch between c
             % instrument used option window
             uicontrol(M,'Units','normalized','position',[leftboundary+0.74 0.835 0.12 0.055],...
                         'Style','Popupmenu','tag','instrument_option',...
-                        'string','CG5|CG6','value',1,'BackgroundColor','white','FontName','Trebuchet MS','FontSize',fs-0.5);
+                        'string','CG5|CG6','value',1,'BackgroundColor','white','FontName','Trebuchet MS','FontSize',fs-0.5,...
+                        'Callback',@instrument_callback);
 
             % number of header lines window
             uicontrol(M,'Units','normalized','Position',[leftboundary+0.74 0.8 0.1 windowsize5],...
@@ -283,11 +284,12 @@ function gradmap(GUI_par, ...               % variables used to switch between c
 
             % Close button
 	        uicontrol('Units','normalized','position',[0.6 0.01 0.19 windowsize6],...
-            'Style','pushbutton','string','Close','FontName','Trebuchet MS','FontSize',fs,'fontweight', 'demi','Callback','gradmap Close'); 
+            'Style','pushbutton','string','Close','FontName','Trebuchet MS','FontSize',fs,'fontweight', 'demi','Callback','gradmap Close');
         end
-    else
-        switch GUI_par
 
+    else
+            % define what happens when individual buttons are pressed.
+        switch GUI_par
             % Click on choose input files button ---------------------------------------
             case 'input_path' 
                 [data_filename,data_path]=uigetfile({'*.txt';'*.dat';'*.*'},'Select measurement file(s)','MultiSelect','on');
@@ -744,6 +746,7 @@ function gradmap(GUI_par, ...               % variables used to switch between c
             case 'Close'
                close all
         end
+        
     end
 end
 % End of Main Function
@@ -760,6 +763,27 @@ end
 % % Additional functions called within processing, do not remove, delete or
 % move these.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%________________________________________________________________________
+
+% Callback for instrument used
+function instrument_callback(hObject, ~)
+    % Get the selected value from the instrument popup menu
+    instrument_value = get(hObject, 'Value');
+
+    % Find the SD scaling and height units controls
+    SD_scaling = findobj('Tag', 'SD_scaling');
+    units_option = findobj('Tag', 'units_option');
+
+    % Check if "CG6" (second option) is selected
+    if instrument_value == 2
+        % Disable and darken the "SD scaling" and "height units" controls
+        set(SD_scaling, 'Enable', 'off', 'BackgroundColor', [0.8 0.8 0.8]);
+        set(units_option, 'Enable', 'off', 'BackgroundColor', [0.8 0.8 0.8]);
+    else
+        % Enable and reset the "SD scaling" and "height units" controls
+        set(SD_scaling, 'Enable', 'on', 'BackgroundColor', 'white');
+        set(units_option, 'Enable', 'on', 'BackgroundColor', 'white');
+    end
+end
 
 % Linear gradient _______________________________________________________________
 function [output_linear] = gradient_linear(input_file, ...

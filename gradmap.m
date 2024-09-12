@@ -291,8 +291,11 @@ function gradmap(GUI_par, ...               % variables used to switch between c
             % define what happens when individual buttons are pressed.
         switch GUI_par
             % Click on choose input files button ---------------------------------------
-            case 'input_path' 
-                [data_filename,data_path]=uigetfile({'*.txt';'*.dat';'*.*'},'Select measurement file(s)','MultiSelect','on');
+            case 'input_path'
+
+                % [data_filename,data_path]=uigetfile({'*.txt';'*.dat';'*.*'},'Select measurement file(s)','MultiSelect','on');
+                % get input data path
+                [data_filename,data_path]=uigetfile({'*.*'},'Select measurement file(s)','MultiSelect','on');
 
                 if iscell(data_filename)
                     nfiles = length(data_filename);
@@ -772,17 +775,25 @@ function instrument_callback(hObject, ~)
     % Find the SD scaling and height units controls
     SD_scaling = findobj('Tag', 'SD_scaling');
     units_option = findobj('Tag', 'units_option');
+    edit_pocet_riadkov = findobj('Tag', 'edit_pocet_riadkov');
 
     % Check if "CG6" (second option) is selected
     if instrument_value == 2
         % Disable and darken the "SD scaling" and "height units" controls
         set(SD_scaling, 'Enable', 'off', 'BackgroundColor', [0.8 0.8 0.8]);
         set(units_option, 'Enable', 'off', 'BackgroundColor', [0.8 0.8 0.8]);
+        set(edit_pocet_riadkov, 'String', '21');
+        % set(edit_pocet_riadkov, 'Enable', 'off', 'BackgroundColor', [0.8 0.8 0.8]);
+        
     else
         % Enable and reset the "SD scaling" and "height units" controls
         set(SD_scaling, 'Enable', 'on', 'BackgroundColor', 'white');
         set(units_option, 'Enable', 'on', 'BackgroundColor', 'white');
+        set(edit_pocet_riadkov, 'Enable', 'on', 'BackgroundColor', 'white');
+       
     end
+
+
 end
 
 % Linear gradient _______________________________________________________________

@@ -551,218 +551,211 @@ def gradient_function(input_file, header_lines, calibration_factor, SD_scale_inf
 
     return output_function
 
-def gravity_differences(input_file, header_lines, calibration_factor, SD_scale_information, input_units_option, significance, SD00):
-    # Read data from file
-    filedata = pd.read_csv(input_file, header=header_lines, delimiter=r'\s+', 
-                           names=['col1', 'points', 'height', 'grav', 'col5', 'col6', 'col7', 'col8', 'col9', 'col10', 'col11', 'dn', 'col13', 'YY', 'col15', 'col16'],
-                           dtype={'points': str, 'YY': int})
-
-    # Point ID information
-    points = filedata['points']
-    uniquepoints = points.unique()
-    measured_points = [p if p.isdigit() else f'{float(p):8.2f}' for p in uniquepoints]
-
-    # Datetime numeric information for each measurement (dn)
-    dn = filedata['dn']
-
-    # Time information (dtime)
-    dtime_t = pd.to_datetime(dn, origin='datenum', unit='D')
-    dtime = pd.to_datetime(filedata['YY']*1000000 + filedata['col15']*10000 + filedata['col16']*100 + dtime_t.dt.hour*10000 + dtime_t.dt.minute*100 + dtime_t.dt.second, format='%Y%m%d%H%M%S')
-
-    # Height above surface (mark) - converted to meters
-    height = (filedata['height'] - 21.1) / 100 if input_units_option == 1 else (filedata['height'] - 0.211) if input_units_option == 2 and (filedata['height'].mean() > 3) else (filedata['height'] - 21.1) / 100
-
-    # Measured mGal units converted to μGal
-    grav = filedata['grav'] * 1000 if calibration_factor is None else filedata['grav'] * 1000 * calibration_factor
-
-    # Reducing measured values to a point using normal gradient
-    grav = grav + height * (308.6)
-
-    # Least Square Adjustment - deterministic model
-    n0 = len(points)  # number of measurements taken
-    k = len(uniquepoints)  # number of measured levels
-
-    # Drift polynomial degree
-    polynomial_degree = 2
-
-    # Jacobi matrix, point section
-    A = np.zeros((n0, k))
-    for i, unique_point in enumerate(uniquepoints):
-        ind = points == unique_point
-        A[ind, i] = 1
-        A[~ind, i] = 0
-
-    # Average height for individual measured levels
-    level_height = np.array([height[ind].mean() for ind in A.astype(bool)])
-
-    # Jacobi matrix, drift part
-    A = np.column_stack([A, np.ones(n0)])
-    for i in range(k + 1, k + 1 + polynomial_degree):
-        A = np.column_stack([A, (dn - dn.iloc[0])**(i - k - 1)])
-
-    # Regularization - by default first column is removed to fix position 1 as starting
-    A = np.delete(A, 0, axis=1)
-
-    # Load errors from filedata
-    ERR = filedata['col5'] * 1000
-
-    # Scale errors
-    if SD_scale_information == 1:
-        ERR = ERR / np.sqrt(60)
-
-    # Weights
-    weight = np.mean(ERR) / ERR
-
-    # Weight matrix
-    P = np.diag(weight)
-
-    # Covariance matrix of measurements
-    Q = np.linalg.inv(P)
-    C = (SD00**2) * Q
-
-    # Parameter adjustment using LSE formulas
-    adjusted_parameters = np.linalg.inv(A.T @ np.linalg.inv(C) @ A) @ A.T @ np.linalg.inv(C) @ grav
-
-    # Measurement errors to adjusted parameters
-    v = A @ adjusted_parameters - grav
-
-    # Root mean square error
-    rmse1 = np.sqrt((v.T @ np.linalg.inv(C) @ v) / (n0 - k - 2 - polynomial_degree))
-
-    # Covariance matrix of adjusted parameters
-    C_theta = (rmse1**2) * np.linalg.inv(A.T @ np.linalg.inv(C) @ A)
-
-    # Standard deviation of adjusted parameters
-    SD_theta = np.sqrt(np.diag(C_theta))
-
-    # Drift coefficients
-    drift_koef = adjusted_parameters[-polynomial_degree:]
-    AA = A[:, -polynomial_degree:]
-
-    # Residual (transportation drift)
-    res_drift = AA @ drift_koef
-
-    # Test values
-    test = res_drift + v
-
-    # Average drift value to subtract later
-    res_drift_av = np.mean(res_drift)
-
-    # Outliers testing
-    if significance == 1:
-        significance_level = 0.32
-        students_inverse_approximate = 480.7 * np.exp(-2.068 * (n0 - k)) + 2.847 * np.exp(-0.000441 * (n0 - k))
-
-    elif significance == 2:
-        significance_level = 0.05
-        students_inverse_approximate = 43.06 * np.exp(-1.403 * (n0 - k)) + 2.071 * np.exp(-0.0002368 * (n0 - k))
-
-    elif significance == 3:
-        significance_level = 0.01
-        students_inverse_approximate = 1.633 * np.exp(-0.7396 * (n0 - k)) + 1.013 * np.exp(-7.638e-05 * (n0 - k))
-
-    # Outliers indexes
-    index_outliers = np.where(np.abs(v) >= SD00 * rmse1 * significance)[0]
-
-    # Statistical testing of parameters
-    Tau = adjusted_parameters[-1] / SD_theta[-1]
-
-    # Quadratic component significance testing
-    has_license_for_toolbox = False  # Please replace this with your own check for the Statistics Toolbox
-
-    if not has_license_for_toolbox:
-        students_inverse = students_inverse_approximate
-
-        if np.abs(Tau) < students_inverse:
+def gravity_differences(input_file, header_lines, significance, SD_scale_information, instrument_type):
+    try:
+        
+        # Search for the line containing "GCAL1" in the header
+        header_line_number = None
+        with open(input_file, 'r') as file:
+            for i, line in enumerate(file):
+                if "Gcal1" in line:
+                    header_line_number = i
+                    header_info = line.strip()
+                    break
+        
+        # Check if the line with "GCAL1" was found
+        if header_line_number is None:
+            raise ValueError("The word 'GCAL1' was not found in the file.")
+        
+        GCAL1_str = header_info[9:]
+        GCAL1 = float(GCAL1_str)
+                
+        # Search for the line containing "GCAL1" in the header
+        header_line_number = None
+        with open(input_file, 'r') as file:
+            for i, line in enumerate(file):
+                if "Instrument S/N" in line:
+                    header_line_number = i
+                    header_info = line.strip()
+                    break
+        
+        # Check if the line with "Serial number of instrument" was found
+        if header_line_number is None:
+            raise ValueError("The word 'GCAL1' was not found in the file.")
+        SN_str = header_info[17:]
+        
+        # # Read data from file
+        filedata = pd.read_csv(input_file, header=header_lines, delimiter=r'\s+', 
+                                names=['col1', 'points', 'height', 'grav', 'SD', 'tiltx', 'tilty', 'temp_corr', 'tide_corr', 'duration', 'rejected', 'time', 'dn', 'terrain_col', 'date'],
+                                dtype={'points': str, 'height':float, 'time': str})
+    
+        # Combine date and time into datetime column
+        filedata['datetime'] = pd.to_datetime(filedata['date'] + ' ' + filedata['time'], format='%Y/%m/%d %H:%M:%S')
+        dtime = filedata['datetime']
+        
+        # Convert datetime to numeric date format (days since Unix epoch)
+        dn = filedata['datetime'].apply(lambda x: x.timestamp() / (24 * 3600))
+        
+        if instrument_type == 'Scintrex CG5':
+            
+            # Determine the adjustment based on testheight
+            if filedata['height'].iloc[0] > 2:
+                # Convert centimeters to meters: Subtract 21.1 and divide by 100
+                filedata['height'] = (filedata['height'] - 21.1) / 100
+            else:
+                # Assume default units are meters: Subtract 0.211
+                filedata['height'] = filedata['height'] - 0.211
+        
+        # Convert measured mGal units to μGal
+        grav = filedata['grav'] * 1000
+        # Reducing measured values to a point using normal gradient
+        grav = grav + filedata['height'] * 308.6
+        # Point ID information
+        points = filedata['points']
+        uniquepoints = filedata['points'].unique()
+        measured_points = [p if p.isdigit() else f'{float(p):8.2f}' for p in uniquepoints]
+        # Least Square Adjustment - deterministic model
+        n0 = len(filedata['points'])  # number of measurements taken
+        k = len(uniquepoints)  # number of measured points
+        
+        # starting drift polynomial degree
+        polynomial_degree = 2
+        
+        # Jacobi matrix, point section
+        A = np.zeros((n0, k))
+        for i, unique_point in enumerate(uniquepoints):
+            ind = points == unique_point
+            A[ind, i] = 1
+        
+        # Jacobi matrix, drift part
+        A = np.column_stack([A, np.ones(n0)])
+        for i in range(k + 2 , k + 2 + polynomial_degree):
+            A = np.column_stack([A, (dn - dn[0])**(i - k - 1)])
+        # Regularization - by default first column is removed to fix position 1 as starting 
+        A = np.delete(A, 0, axis=1)
+        # # Load errors from filedata and transfer from miliGal to microGal
+        ERR = filedata['SD'] * 1000
+        # Scale errors
+        if SD_scale_information == 1:
+            ERR = ERR / np.sqrt(60)
+            
+        C = np.diag(np.square(ERR))
+        # Parameter adjustment using LSE formulas
+        adjusted_parameters = np.linalg.inv(A.T @ np.linalg.inv(C) @ A) @ A.T @ np.linalg.inv(C) @ grav
+        # Measurement errors to adjusted parameters
+        v = A @ adjusted_parameters - grav
+        # Root mean square error
+        rmse1 = np.sqrt((v.T @ np.linalg.inv(C) @ v) / (n0 - k - 2 - polynomial_degree))
+        # Covariance matrix of adjusted parameters
+        C_theta = (rmse1**2) * np.linalg.inv(A.T @ np.linalg.inv(C) @ A)
+        # Standard deviation of adjusted parameters
+        SD_theta = np.sqrt(np.diag(C_theta))
+        # Drift coefficients
+        drift_koef = adjusted_parameters[-polynomial_degree:]
+        AA = A[:, -polynomial_degree:]
+        # Residual (transportation drift)
+        res_drift = AA @ drift_koef
+        # Test values
+        test = res_drift + v
+        # Average drift value to subtract later
+        res_drift_av = np.mean(res_drift)
+        # Outliers testing
+        if significance == 1:
+            significance_level = 0.32
+        
+        elif significance == 2:
+            significance_level = 0.05
+        
+        elif significance == 3:
+            significance_level = 0.01
+        
+        # Outliers indexes
+        index_outliers = np.where(np.abs(v) >= 5 *3* rmse1 * significance)[0]
+        # Statistical testing of parameters
+        Tau = adjusted_parameters[-1] / SD_theta[-1]
+        # Quadratic component significance testing
+        
+        t_value = stats.t.ppf(1-significance_level/2, n0-k)
+        
+        if np.abs(Tau) < t_value:
             polynomial_degree_new = 1  # Drift approx. function set to linear
         else:
             polynomial_degree_new = 2  # Drift approx. function remains quadratic
-
-    else:  # If working with statistic toolbox
-        students_inverse = t.ppf(1 - (significance_level) / 2, n0 - k)
-
-        if np.abs(Tau) < students_inverse:
-            polynomial_degree_new = 1  # Drift approx. function set to linear
-        else:
-            polynomial_degree_new = 2  # Drift approx. function remains quadratic
-
-    # Removing outliers
-    grav = np.delete(grav, index_outliers)
-    dn = np.delete(dn, index_outliers)
-    points = np.delete(points, index_outliers)
-    ERR = np.delete(ERR, index_outliers)
-    YY = np.delete(filedata['YY'], index_outliers)
-
-    n = len(points)
-    A = np.zeros((n, k))
-
-    # Reprocessing without outliers
-    for i, unique_point in enumerate(uniquepoints):
-        ind = points == unique_point
-        A[ind, i] = 1
-        A[~ind, i] = 0
-
-    # The not so useful part of Jacobi's matrix
-    A = np.column_stack([A, np.ones(n)])
-    for i in range(k + 1, k + 1 + polynomial_degree_new):
-        A = np.column_stack([A, (dn - dn[0])**(i - k - 1)])
-
-    # Jacobi Matrix new
-    A = np.delete(A, 0, axis=1)
-
-    # New weighing
-    weight = np.mean(ERR) / ERR
-    P = np.diag(weight)
-    Q = np.linalg.inv(P)
-    C = (SD00**2) * Q  # Factor and Covariance matrix
-
-    # New adjusted parameters without considering outliers in the processing
-    adjusted_parameters_new = np.linalg.inv(A.T @ np.linalg.inv(C) @ A) @ A.T @ np.linalg.inv(C) @ grav
-
-    # Measurements errors to adjusted parameters
-    v = A @ adjusted_parameters_new - grav
-    rmse2 = np.sqrt((v.T @ np.linalg.inv(C) @ v) / (n - k - 2 - polynomial_degree_new - 1))
-    C_theta = (rmse2**2) * np.linalg.inv(A.T @ np.linalg.inv(C) @ A)
-    SD_theta_new = np.sqrt(np.diag(C_theta))
-
-    drift_koef2 = adjusted_parameters_new[-polynomial_degree_new:]
-    AA = A[:, -polynomial_degree_new:]
-
-    # New drift
-    res_drift_new = AA @ drift_koef2
-    res_drift_new_av = np.mean(res_drift_new)
-
-    # Time information - dtime (datetime)
-    dtime_t_new = pd.to_datetime(dn, origin='datenum', unit='D')
-    dtime_new = pd.to_datetime(YY*1000000 + dtime_t_new.dt.month*10000 + dtime_t_new.dt.day*100 + dtime_t_new.dt.hour*10000 + dtime_t_new.dt.minute*100 + dtime_t_new.dt.second, format='%Y%m%d%H%M%S')
-
-    # Output dictionary
-    output_gravity_diff = {
-        'stationinfo': {
-            'filename': input_file.ljust(100),
-            'measurement_date': str(dtime_new.iloc[0]),
-            'measuredpoints': measured_points
-        },
-        'time': {
-            'all_measurements': dtime,
-            'no_outliers': dtime_new,
-            'outliers': dtime.iloc[index_outliers].tolist()
-        },
-        'processing': {
-            'number_of_measurements': n0,
-            'rejected_measurements': n0 - n,
-            'RMSE': rmse2 * SD00,
-            'errors_all': (test - res_drift_av).tolist(),
-            'errors_outliers': (test.iloc[index_outliers] - res_drift_av).tolist()
-        },
-        'drift': {
-            'polynomial_degree': str(polynomial_degree_new),
-            'drift_all_measurements': (res_drift - res_drift_av).tolist(),
-            'drift_no_outliers': (res_drift_new - res_drift_new_av).tolist()
-        },
-        'adjusted': {
-            'differences': adjusted_parameters_new[:-polynomial_degree_new-1].tolist(),
-            'std': SD_theta_new[:-polynomial_degree_new-1].tolist()
+        
+        # Removing outliers
+        grav = np.delete(grav, index_outliers)
+        dn = np.delete(dn, index_outliers)
+        points = np.delete(points, index_outliers)
+        ERR = np.delete(ERR, index_outliers)
+        
+        n = len(points)
+        A = np.zeros((n, k))
+        for i, unique_point in enumerate(uniquepoints):
+            ind = points == unique_point
+            A[ind, i] = 1
+        
+        # Jacobi matrix, drift part
+        A = np.column_stack([A, np.ones(n)])
+        for i in range(k + 2 , k + 2 + polynomial_degree):
+            A = np.column_stack([A, (dn - dn[0])**(i - k - 1)])
+            
+        # Regularization - by default first column is removed to fix position 1 as starting 
+        A = np.delete(A, 0, axis=1)
+        C = np.square(np.diag(ERR))
+        
+        # New adjusted parameters without considering outliers in the processing
+        adjusted_parameters_new = np.linalg.inv(A.T @ np.linalg.inv(C) @ A) @ A.T @ np.linalg.inv(C) @ grav
+        
+        # Measurements errors to adjusted parameters
+        v = A @ adjusted_parameters_new - grav
+        rmse2 = np.sqrt((v.T @ np.linalg.inv(C) @ v) / (n - k - 2 - polynomial_degree_new - 1))
+        C_theta = (rmse2**2) * np.linalg.inv(A.T @ np.linalg.inv(C) @ A)
+        SD_theta_new = np.sqrt(np.diag(C_theta))
+        
+        drift_koef2 = adjusted_parameters_new[-polynomial_degree_new:]
+        AA = A[:, -polynomial_degree_new:]
+        
+        # New drift
+        res_drift_new = AA @ drift_koef2
+        res_drift_new_av = np.mean(res_drift_new)
+        
+        # new Time information dtime (datetime)
+        dtime_new = pd.to_datetime(dn, unit='D', origin='unix')
+        
+        # Output dictionary
+        output_gravity_diff = {
+            'stationinfo': {
+                'filename': input_file.ljust(100),
+                'measurement_date': str(dtime_new[0]),
+                'measuredpoints': measured_points
+            },
+            'time': {
+                'all_measurements': dtime,
+                'no_outliers': dtime_new,
+                'outliers': dtime.iloc[index_outliers].tolist()
+            },
+            'processing': {
+                'number_of_measurements': n0,
+                'rejected_measurements': n0 - n,
+                'RMSE': rmse2,
+                'errors_all': (test - res_drift_av).tolist(),
+                'errors_outliers': (test.iloc[index_outliers] - res_drift_av).tolist()
+            },
+            'drift': {
+                'polynomial_degree': str(polynomial_degree_new),
+                'drift_all_measurements': (res_drift - res_drift_av).tolist(),
+                'drift_no_outliers': (res_drift_new - res_drift_new_av).tolist()
+            },
+            'adjusted': {
+                'differences': adjusted_parameters_new[:len(uniquepoints)-1].tolist(),
+                'std': SD_theta_new[:len(uniquepoints)-1].tolist()
+            },
+            'instrument_info': {
+                'GCAL1':GCAL1,
+                'SN':SN_str
+                }
         }
-    }
-    return output_gravity_diff
+        return output_gravity_diff
+    except Exception as e:
+        print(f"Error in gravity_differences: {e}")
+        raise

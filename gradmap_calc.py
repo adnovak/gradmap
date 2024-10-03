@@ -3,11 +3,12 @@ import pandas as pd
 from datetime import datetime
 from scipy.stats import t
 
+
+def gradient_linear(input_file, header_lines, instrument_type, number_of_measured_levels, calibration_factor, SD_scale_information, input_units_option, significance, SD00):
     # Read data from file
     filedata = pd.read_csv(input_file, header=header_lines, delimiter=r'\s+', 
                            names=['col1', 'points', 'height', 'grav', 'col5', 'col6', 'col7', 'col8', 'col9', 'col10', 'col11', 'dn', 'col13', 'YY', 'col15', 'col16'],
                            dtype={'points': str, 'YY': int})
-def gradient_linear(input_file, header_lines, instrument_type, number_of_measured_levels, calibration_factor, SD_scale_information, input_units_option, significance, SD00):
 
     # Point ID information
     points = filedata['points']
@@ -223,32 +224,7 @@ def gradient_linear(input_file, header_lines, instrument_type, number_of_measure
 
 
 def gradient_linear(input_file, header_lines, calibration_factor, SD_scale_information, number_of_measured_levels, input_units_option, significance, SD00):
-    # File Reading
-    filedata = pd.read_csv(input_file, delim_whitespace=True, skiprows=header_lines,
-                           names=['Value1', 'Point', 'Height', 'Gravity', 'Error', 'Datetime', 'Value2', 'Value3', 'Value4', 'Value5', 'Value6', 'Value7', 'YY', 'MM', 'DD', 'HHMMSS'])
-
-    # Point ID information
-    points = filedata['Point']
-    uniquepoints = points.unique()
-    pts_num = float(uniquepoints[0]) if uniquepoints[0].replace('.', '', 1).isdigit() else uniquepoints[0]
-
-    measured_station_ID = uniquepoints[0] if isinstance(pts_num, str) else f'{pts_num:8.2f}'
-
-    # Datetime numeric information for each measurement
-    dn = filedata['Datetime']
-    dtime_t = pd.to_datetime(dn, format='%Y%m%d%H%M%S')
-    dtime = dtime_t
-
-    # Height above surface
-    if input_units_option == 1:
-        height = (filedata['Height'] - 21.1) / 100
-    elif input_units_option == 2:
-        height = (filedata['Height'] - 0.211)
-        if height.mean() > 3:
-            height = (filedata['Height'] - 21.1) / 100
-
-    # Measured mGal units converted to μGal
-    grav = filedata['Gravity'] * 1000 if calibration_factor is None else filedata['Gravity'] * 1000 * calibration_factor
+    
 
     # Least Square Adjustment - deterministic model
     n0 = len(points)
@@ -986,7 +962,47 @@ def gravity_differences(input_file, header_lines, calibration_factor, SD_scale_i
     }
     return output_gravity_diff
 
-def read_CG5(input_file, header_lines, instrument_type, number_of_measured_levels, calibration_factor, SD_scale_information, input_units_option, significance, SD00):
+def read_CG5(input_file, header_lines, calibration_factor, SD_scale_information):
     
-    return 
+    # File Reading
+    filedata = pd.read_csv(input_file, delim_whitespace=True, skiprows=header_lines,
+                           names=['Value1', 'Point', 'Height', 'Gravity', 'Error', 'Datetime', 'Value2', 'Value3', 'Value4', 'Value5', 'Value6', 'Value7', 'YY', 'MM', 'DD', 'HHMMSS'])
 
+    # Point ID information
+    points = filedata['Point']
+    uniquepoints = points.unique()
+    pts_num = float(uniquepoints[0]) if uniquepoints[0].replace('.', '', 1).isdigit() else uniquepoints[0]
+
+    measured_station_ID = uniquepoints[0] if isinstance(pts_num, str) else f'{pts_num:8.2f}'
+
+    # Datetime numeric information for each measurement
+    dn = filedata['Datetime']
+    dtime_t = pd.to_datetime(dn, format='%Y%m%d%H%M%S')
+    dtime = dtime_t
+
+    # Height above surface
+    if input_units_option == 1:
+        height = (filedata['Height'] - 21.1) / 100
+    elif input_units_option == 2:
+        height = (filedata['Height'] - 0.211)
+        if height.mean() > 3:
+            height = (filedata['Height'] - 21.1) / 100
+
+    # Measured mGal units converted to μGal
+    grav = filedata['Gravity'] * 1000 if calibration_factor is None else filedata['Gravity'] * 1000 * calibration_factor
+    
+    
+    
+    
+    
+    
+    
+    return CG5_data
+
+
+def read_CG6(input_file, header_lines, calibration_factor):
+    
+    
+    
+    
+    return CG6_data

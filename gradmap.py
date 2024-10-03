@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-
-
 @author: adam.novak@skgeodesy.sk
+
+
 """
 
 import tkinter as tk
@@ -38,8 +38,8 @@ class App(tk.Frame):
         label_header_lines = tk.Label(p1, text="number of header lines", bg='#f0f0f0', anchor="w", font=custom_font)
         label_header_lines.place(relx=0.02, rely=0.32, relwidth=0.34, relheight=0.1)
 
-        label_height_units = tk.Label(p1, text="height units", bg='#f0f0f0', anchor="w", font=custom_font)
-        label_height_units.place(relx=0.02, rely=0.49, relwidth=0.2, relheight=0.12)
+        label_instrument_type = tk.Label(p1, text="instrument type", bg='#f0f0f0', anchor="w", font=custom_font)
+        label_instrument_type.place(relx=0.02, rely=0.49, relwidth=0.35, relheight=0.12)
 
         label_instrument_uncertainty = tk.Label(p1, text="instrument uncertainty in µGal", bg='#f0f0f0', anchor="w", font=custom_font)
         label_instrument_uncertainty.place(relx=0.02, rely=0.66, relwidth=0.5, relheight=0.1)
@@ -51,8 +51,8 @@ class App(tk.Frame):
         entry_header_lines.insert(0, 34)  # Prefill with the default value 34
         entry_header_lines.place(relx=0.74, rely=0.32, relwidth=0.1, relheight=0.12)
 
-        units_options = tk.OptionMenu(p1, tk.StringVar(value="cm"), "cm", "m")
-        units_options.place(relx=0.73, rely=0.45, relwidth=0.12, relheight=0.15)
+        instrument_options = tk.OptionMenu(p1, tk.StringVar(value="CG5"), "CG5", "CG6")
+        instrument_options.place(relx=0.73, rely=0.45, relwidth=0.12, relheight=0.15)
 
         entry_accuracy = tk.Entry(p1, font=custom_font_widgets, justify='center')
         entry_accuracy.insert(0, 5)  # Prefill with the default value 5 microGals

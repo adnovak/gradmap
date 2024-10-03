@@ -1422,7 +1422,6 @@ function [output_function] = gradient_function(input_file, ...
     output_function.gradient.std = SD_theta_final(2:1+polynomial_degree_height_final);
     output_function.gradient.std = [output_function.gradient.std; zeros(2-numel(output_function.gradient.std),1)];
     output_function.gradient.cov = covariance_parameter;
-
 end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -1697,6 +1696,7 @@ end
 function [points,dtime,dn,YY,height,grav,ERR] = read_CG6(input_file, ...
                                           header_lines, ...
                                           calibration_factor)
+
     % file reading
     fileID = fopen(input_file);
     % read data from file

@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 """
 @author: adam.novak@skgeodesy.sk
-
-
 """
 
 import tkinter as tk
@@ -143,16 +141,39 @@ class App(tk.Frame):
         close_button = tk.Button(self.master, text='Close', bg='#e7e7e7', command=self.master.destroy, font=custom_font)
         close_button.place(relx=0.6, rely=0.93, relwidth=0.19, relheight=0.05)
 
+    # chose input file widget function
     def choose_input_files(self):
         file_paths = filedialog.askopenfilenames()
         if file_paths:
-            # Join the file paths into a string and update the label
             file_paths_str = "\n".join(file_paths)
             self.show_local_path.config(text=file_paths_str)
+            self.input_file = file_paths[0]  # Store the first selected file for processing
 
     def create_report_file(self):
-        # You can implement the functionality to handle creating a report file here
-        print('Creating report file...')
+            self.report_path = filedialog.asksaveasfilename(defaultextension=".txt", filetypes=[("txt file", "*.txt")])
+            if self.report_path:
+                self.show_report_path.config(text=self.report_path)
+                if hasattr(self, 'diff_result'):
+                    self.save_report(self.diff_result, self.report_path)
+
+    # function that handles clicking on 'vypocet' button
+    def process_file(self):
+        
+        print("Starting file processing...")
+        self.store_selected_points()
+
+        # get input_file
+        input_file = self.input_file
+        instrument_type = self.instrument_var.get()
+        report_filename = self.report_path
+        
+             # Check if necessary paths are set
+        if not input_file:
+            messagebox.showerror("Error", "Please select an input file.")
+            return
+        if not report_filename:
+            messagebox.showerror("Error", "Please specify a report file path.")
+            return
 
 if __name__ == "__main__":
     root = tk.Tk()

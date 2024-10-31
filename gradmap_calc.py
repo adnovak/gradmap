@@ -736,6 +736,10 @@ def gravity_differences(input_file, header_lines, significance, SD_scale_informa
     # starting drift polynomial degree
     polynomial_degree = 2
     
+    
+    
+    
+    
     # Jacobi matrix, point section
     A = np.zeros((n0, k))
     for i, unique_point in enumerate(uniquepoints):
@@ -748,8 +752,12 @@ def gravity_differences(input_file, header_lines, significance, SD_scale_informa
         A = np.column_stack([A, (dn - dn[0])**(i - k - 1)])
     # Regularization - by default first column is removed to fix position 1 as starting 
     A = np.delete(A, 0, axis=1)
-    # # Load errors from filedata and transfer from miliGal to microGal
     
+    
+    
+    
+    
+    # # Load errors from filedata and transfer from miliGal to microGal
     C = np.diag(np.square(filedata['ERR'] ))
     # Parameter adjustment using LSE formulas
     adjusted_parameters = np.linalg.inv(A.T @ np.linalg.inv(C) @ A) @ A.T @ np.linalg.inv(C) @ grav

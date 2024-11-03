@@ -27,40 +27,39 @@ class App(tk.Frame):
         custom_font_widgets = font.Font(family="Trebuchet MS", size= int(10))  # font displayed within entry window widgets
 
         p1 = tk.LabelFrame(self.master, text='Input Data', bg='#f0f0f0', relief=tk.GROOVE, borderwidth=2.5,font=custom_font_panel)
-        p1.place(relx=0.02, rely=0.01, relwidth=0.96, relheight=0.31)
+        p1.place(relx=0.02, rely=0.01, relwidth=0.96, relheight=0.23)
 
         button_choose_file = tk.Button(p1, text="Choose file(s)", bg='#e7e7e7', command=self.choose_input_files, font=custom_font)
         button_choose_file.place(relx=0.02, rely=0.05, relwidth=0.3, relheight=0.2)
 
         self.show_local_path = tk.Label(p1, text="", bg='#f0f0f0', anchor="w", font=custom_font_display)
-        self.show_local_path.place(relx=0.35, rely=0.05, relwidth=0.6, relheight=0.15)
+        self.show_local_path.place(relx=0.35, rely=0.05, relwidth=0.6, relheight=0.25)
+
+        label_instrument = tk.Label(p1, text="instrument type", bg='#f0f0f0', anchor="w", font=custom_font)
+        label_instrument.place(relx=0.02, rely=0.31, relwidth=0.35, relheight=0.25)
+        
+        self.instrument_var = tk.StringVar(value="Scintrex CG5")
+        instrument_options = tk.OptionMenu(p1, self.instrument_var, "Scintrex CG5", "CG6 Autograv")
+        instrument_options.place(relx=0.7, rely=0.3, relwidth=0.24, relheight=0.24)
+
+        # entry_header_lines = tk.Entry(p1, font=custom_font_widgets, justify='center')
+        # entry_header_lines.insert(0, 34)  # Prefill with the default value 34
+        # entry_header_lines.place(relx=0.74, rely=0.68, relwidth=0.1, relheight=0.2)
+        # label_header_lines = tk.Label(p1, text="number of header lines", bg='#f0f0f0', anchor="w", font=custom_font)
+        # label_header_lines.place(relx=0.02, rely=0.49, relwidth=0.34, relheight=0.1)
+
 
         label_header_lines = tk.Label(p1, text="number of header lines", bg='#f0f0f0', anchor="w", font=custom_font)
-        label_header_lines.place(relx=0.02, rely=0.32, relwidth=0.34, relheight=0.1)
+        label_header_lines.place(relx=0.02, rely=0.54, relwidth=0.34, relheight=0.15)
+        self.entry_header_lines = tk.Entry(p1, font=custom_font_widgets, justify='center')
+        self.entry_header_lines.insert(0, 34)
+        self.entry_header_lines.place(relx=0.74, rely=0.54, relwidth=0.1, relheight=0.15)
 
-        label_instrument_type = tk.Label(p1, text="instrument type", bg='#f0f0f0', anchor="w", font=custom_font)
-        label_instrument_type.place(relx=0.02, rely=0.49, relwidth=0.35, relheight=0.12)
 
-        label_instrument_uncertainty = tk.Label(p1, text="instrument uncertainty in µGal", bg='#f0f0f0', anchor="w", font=custom_font)
-        label_instrument_uncertainty.place(relx=0.02, rely=0.66, relwidth=0.5, relheight=0.1)
-
-        label_sd_scaling = tk.Label(p1, text="standard deviation scaling", bg='#f0f0f0', anchor="w", font=custom_font)
-        label_sd_scaling.place(relx=0.02, rely=0.82, relwidth=0.42, relheight=0.12)
-
-        entry_header_lines = tk.Entry(p1, font=custom_font_widgets, justify='center')
-        entry_header_lines.insert(0, 34)  # Prefill with the default value 34
-        entry_header_lines.place(relx=0.74, rely=0.32, relwidth=0.1, relheight=0.12)
-
-        instrument_options = tk.OptionMenu(p1, tk.StringVar(value="CG5"), "CG5", "CG6")
-        instrument_options.place(relx=0.73, rely=0.45, relwidth=0.12, relheight=0.15)
-
-        entry_accuracy = tk.Entry(p1, font=custom_font_widgets, justify='center')
-        entry_accuracy.insert(0, 5)  # Prefill with the default value 5 microGals
-        entry_accuracy.place(relx=0.74, rely=0.65, relwidth=0.1, relheight=0.12)
-
-        sd_scaling_options = tk.OptionMenu(p1, tk.StringVar(value="series"), "series", "second")
-        sd_scaling_options.place(relx=0.72, rely=0.8, relwidth=0.18, relheight=0.17)
-
+        
+        
+        
+        
         # Panel 2 - Processing
         p2 = tk.LabelFrame(self.master, text='Processing', bg='#f0f0f0', relief=tk.GROOVE, borderwidth=2,font = custom_font_panel)
         p2.place(relx=0.02, rely=0.33, relwidth=0.96, relheight=0.3)
@@ -151,8 +150,12 @@ class App(tk.Frame):
             self.show_local_path.config(text=file_paths_str)
 
     def create_report_file(self):
-        # You can implement the functionality to handle creating a report file here
-        print('Creating report file...')
+            self.report_path = filedialog.asksaveasfilename(defaultextension=".txt", filetypes=[("txt file", "*.txt")])
+            if self.report_path:
+                self.show_report_path.config(text=self.report_path)
+                if hasattr(self, 'diff_result'):
+                    self.save_report(self.diff_result, self.report_path)
+                    
 
 if __name__ == "__main__":
     root = tk.Tk()

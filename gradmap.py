@@ -26,64 +26,56 @@ class App(tk.Frame):
 
         p1 = tk.LabelFrame(self.master, text='Input Data', bg='#f0f0f0', relief=tk.GROOVE, borderwidth=2.5,font=custom_font_panel)
         p1.place(relx=0.02, rely=0.01, relwidth=0.96, relheight=0.23)
-
+        panel1textheight = 0.25
+        
         button_choose_file = tk.Button(p1, text="Choose file(s)", bg='#e7e7e7', command=self.choose_input_files, font=custom_font)
-        button_choose_file.place(relx=0.02, rely=0.05, relwidth=0.3, relheight=0.2)
-
+        button_choose_file.place(relx=0.02, rely=0.05, relwidth=0.3, relheight=0.3)
         self.show_local_path = tk.Label(p1, text="", bg='#f0f0f0', anchor="w", font=custom_font_display)
-        self.show_local_path.place(relx=0.35, rely=0.05, relwidth=0.6, relheight=0.25)
+        self.show_local_path.place(relx=0.35, rely=0.05, relwidth=0.6, relheight= panel1textheight)
 
         label_instrument = tk.Label(p1, text="instrument type", bg='#f0f0f0', anchor="w", font=custom_font)
-        label_instrument.place(relx=0.02, rely=0.31, relwidth=0.35, relheight=0.25)
+        label_instrument.place(relx=0.02, rely=0.44, relwidth=0.35, relheight= panel1textheight)
         
         self.instrument_var = tk.StringVar(value="Scintrex CG5")
         instrument_options = tk.OptionMenu(p1, self.instrument_var, "Scintrex CG5", "CG6 Autograv")
-        instrument_options.place(relx=0.7, rely=0.3, relwidth=0.24, relheight=0.24)
-
-        # entry_header_lines = tk.Entry(p1, font=custom_font_widgets, justify='center')
-        # entry_header_lines.insert(0, 34)  # Prefill with the default value 34
-        # entry_header_lines.place(relx=0.74, rely=0.68, relwidth=0.1, relheight=0.2)
-        # label_header_lines = tk.Label(p1, text="number of header lines", bg='#f0f0f0', anchor="w", font=custom_font)
-        # label_header_lines.place(relx=0.02, rely=0.49, relwidth=0.34, relheight=0.1)
-
+        instrument_options.place(relx=0.7, rely=0.43, relwidth=0.26, relheight=panel1textheight)
 
         label_header_lines = tk.Label(p1, text="number of header lines", bg='#f0f0f0', anchor="w", font=custom_font)
-        label_header_lines.place(relx=0.02, rely=0.54, relwidth=0.34, relheight=0.15)
+        label_header_lines.place(relx=0.02, rely=0.72, relwidth=0.34, relheight=panel1textheight)
+        
         self.entry_header_lines = tk.Entry(p1, font=custom_font_widgets, justify='center')
         self.entry_header_lines.insert(0, 34)
-        self.entry_header_lines.place(relx=0.74, rely=0.54, relwidth=0.1, relheight=0.15)
-
-
-        
-        
-        
-        
+        self.entry_header_lines.place(relx=0.74, rely=0.72, relwidth=0.1, relheight=panel1textheight-0.04)
+   
+    
         # Panel 2 - Processing
         p2 = tk.LabelFrame(self.master, text='Processing', bg='#f0f0f0', relief=tk.GROOVE, borderwidth=2,font = custom_font_panel)
-        p2.place(relx=0.02, rely=0.33, relwidth=0.96, relheight=0.3)
-
+        p2.place(relx=0.02, rely=0.24, relwidth=0.96, relheight=0.32)
+        
+        panel2textheight = 0.18
+        
         # Settings Panel in Processing
         label_measured_positions = tk.Label(p2, text='number of measured positions', bg='#f0f0f0', anchor="w", font=custom_font)
-        label_measured_positions.place(relx=0.02, rely=0.1, relwidth=0.5, relheight=0.12)
+        label_measured_positions.place(relx=0.02, rely=0.1, relwidth=0.5, relheight= panel2textheight)
 
         label_rejection_threshold = tk.Label(p2, text='rejection threshold in µGal', bg='#f0f0f0', anchor="w", font=custom_font)
-        label_rejection_threshold.place(relx=0.02, rely=0.28, relwidth=0.5, relheight=0.12)
+        label_rejection_threshold.place(relx=0.02, rely=0.28, relwidth=0.5, relheight= panel2textheight)
 
         label_gradient_format = tk.Label(p2, text='gradient format', bg='#f0f0f0', anchor="w", font=custom_font)
-        label_gradient_format.place(relx=0.02, rely=0.46, relwidth=0.5, relheight=0.12)
+        label_gradient_format.place(relx=0.02, rely=0.46, relwidth=0.5, relheight= panel2textheight)
         
         label_significance_level = tk.Label(p2, text='significance level', bg='#f0f0f0', anchor="w", font=custom_font)
-        label_significance_level.place(relx=0.02, rely=0.63, relwidth=0.5, relheight=0.12)
+        label_significance_level.place(relx=0.02, rely=0.63, relwidth=0.5, relheight= panel2textheight)
         
         label_calibration_factor = tk.Label(p2, text='calibration factor', bg='#f0f0f0', anchor="w", font=custom_font)
-        label_calibration_factor.place(relx=0.02, rely=0.8, relwidth=0.5, relheight=0.12)
+        label_calibration_factor.place(relx=0.02, rely=0.8, relwidth=0.5, relheight = panel2textheight)
 
-        measured_positions_options = tk.OptionMenu(p2, tk.StringVar(value="2"), "2", "3", "from file")
-        measured_positions_options.place(relx=0.72, rely=0.1, relwidth=0.12, relheight=0.15)
+        self.measured_positions_options = tk.OptionMenu(p2, tk.StringVar(value="2"), "2", "3", "from file")
+        self.measured_positions_options.place(relx=0.72, rely=0.1, relwidth=0.12, relheight=0.15)
         
-        entry_rejection_threshold = tk.Entry(p2, font=custom_font_widgets, justify='center')
-        entry_rejection_threshold.insert(0,5)  # Prefill with the default value 5
-        entry_rejection_threshold.place(relx=0.74, rely=0.29, relwidth=0.1, relheight=0.12)
+        self.entry_rejection_threshold = tk.Entry(p2, font=custom_font_widgets, justify='center')
+        self.entry_rejection_threshold.insert(0,5)  # Prefill with the default value 5
+        self.entry_rejection_threshold.place(relx=0.74, rely=0.29, relwidth=0.1, relheight= panel2textheight)
 
         gradient_format_options = tk.OptionMenu(p2, tk.StringVar(value="linear"), "linear", "function")
         gradient_format_options.place(relx=0.72, rely=0.45, relwidth=0.16, relheight=0.15)
@@ -92,7 +84,9 @@ class App(tk.Frame):
         significance_level_options.place(relx=0.72, rely=0.62, relwidth=0.18, relheight=0.15)
 
         entry_calibration_factor = tk.Entry(p2, font=custom_font_widgets, justify='center')
-        entry_calibration_factor.place(relx=0.74, rely=0.81, relwidth=0.1, relheight=0.12)
+        entry_calibration_factor.place(relx=0.74, rely=0.81, relwidth=0.1, relheight= panel2textheight)
+
+
 
         # Panel 3
         p3 = tk.LabelFrame(self.master, text='Output data', bg='#f0f0f0', relief=tk.GROOVE, borderwidth=2, font=custom_font_panel)
@@ -165,7 +159,6 @@ class App(tk.Frame):
         input_file = self.input_file
         instrument_type = self.instrument_var.get()
         report_filename = self.report_path
-
 
 if __name__ == "__main__":
     root = tk.Tk()

@@ -675,7 +675,7 @@ function gradmap(GUI_par, ...               % variables used to switch between c
                                 report(1,i) = "";
                                 report(2,i) = strcat("processed file: ",output.stationinfo.filename);
                                 report(3,i) = strcat("measurement date: ",output.stationinfo.measurement_date);                                     
-                                report(4,i) = strcat("number of measurements accepted: ",num2str(output.processing.number_of_measurements,'%.0f'));
+                                report(4,i) = strcat("number of measurements accepted: ",num2str(output.processing.number_of_measurements - output.processing.rejected_measurements,'%.0f'));
                                 report(5,i) = strcat("number of outliers: ",num2str(output.processing.rejected_measurements,'%.0f'));
                                 report(6,i) = strcat("drift polynomial degree: ",output.drift.polynomial_degree);
                                 report(7,i) = strcat("root mean square error [μGal]: ",num2str(output.processing.RMSE,'%.1f'));

@@ -465,8 +465,8 @@ function gradmap(GUI_par, ...               % variables used to switch between c
                             storedata = [];
     
                             for i = 1:nfiles
-                                fprintf('Processing file %.0f/%.0f \n',i, nfiles)
                                 input_file = input_files(i,:);
+                                fprintf('Processing file %.0f/%.0f \nNamed: %s\n', i, nfiles, input_file)
                                 % prevents overrunning input file
                                 preserve = input_file(1:end-4);
                                 % compares input and output file name and returns 0 or 1;
@@ -490,9 +490,9 @@ function gradmap(GUI_par, ...               % variables used to switch between c
         
                                     % check for accepted or rejected status
                                     if str2num(output.gradient.std) > rejection_threshold
-                                        report(5,i) = ["status: rejected",];
+                                        report(5,i) = "status: rejected";
                                     else
-                                        report(5,i) = ["status: accepted",];
+                                        report(5,i) = "status: accepted",;
                                     end
                                     
                                     report(6,i) = strcat("number of measurements accepted: ",num2str(output.processing.number_of_measurements,'%.0f'));
@@ -541,12 +541,12 @@ function gradmap(GUI_par, ...               % variables used to switch between c
 
                                     % check for accepted or rejected status
                                     if output.gradient.std(1) > rejection_threshold
-                                        report(5,i) = ["status: rejected",];
+                                        report(5,i) = "status: rejected";
 
                                     elseif output.processing.number_of_rejected_measurements > 0.5*output.processing.number_of_measurements
-                                        report(5,i) = ["status: rejected",];
+                                        report(5,i) = "status: rejected";
                                     else
-                                        report(5,i) = ["status: accepted",];
+                                        report(5,i) = "status: accepted";
                                     end
                                     
                                     report(6,i) = strcat("number of measurements accepted: ",num2str(output.processing.number_of_measurements,'%.0f'));
@@ -657,8 +657,8 @@ function gradmap(GUI_par, ...               % variables used to switch between c
                         else
                             % run through all the files and process them
                             for i = 1:nfiles
-                                fprintf('Processing file %.0f/%.0f \n',i, nfiles)
                                 input_file = input_files(i,:);
+                                fprintf('Processing file %.0f/%.0f \nNamed: %s\n', i, nfiles, input_file)
                                 % prevents overrunning input file
                                 preserve = input_file(1:end-4);
                                 % compares input and output file name and returns 0 or 1;
@@ -815,7 +815,7 @@ function [output_linear] = gradient_linear(input_file, ...
     end
 
     % get unique points (string)
-    uniquepoints = string(unique(points,'stable'));
+    uniquepoints = unique(points, 'stable');
     pts_num = str2double(uniquepoints(1));
     if isnan(pts_num) == 1
         measured_station_ID = uniquepoints(1);
@@ -842,7 +842,7 @@ function [output_linear] = gradient_linear(input_file, ...
 
     % Jacobi matrix, drift part
     A(:,k+1) = 1;
-    for i = k+2:k+1+polynomial_degree;
+    for i = k+2:k+1+polynomial_degree
        A(:,i) = (dn - dn(1)).^(i -(k+1));
     end
 
@@ -906,7 +906,15 @@ function [output_linear] = gradient_linear(input_file, ...
     % Student t's distribution values.
     
     % Check for statistic toolbox license
-    hasLicenseForToolbox = license('test', 'Statistics_Toolbox');
+
+
+
+
+
+
+
+%%%%%%%%%%%%%%     hasLicenseForToolbox = license('test', 'Statistics_Toolbox');
+    hasLicenseForToolbox = 0;
     
     if hasLicenseForToolbox == 0 % if working without statistic toolbox
         if abs(Tau) < students_inverse_approximate % approximate table values for 1/2/3 sigma and 
@@ -1119,7 +1127,7 @@ function [output_function] = gradient_function(input_file, ...
         [points,dtime,dn,YY,height,grav,ERR] = read_CG6(input_file,header_lines,calibration_factor);
     end    
 
-    uniquepoints = string(unique(points,'stable'));
+    uniquepoints = unique(points, 'stable');
     pts_num = str2double(uniquepoints(1));
     if isnan(pts_num) == 1
         measured_station_ID = uniquepoints(1);
@@ -1209,7 +1217,9 @@ function [output_function] = gradient_function(input_file, ...
     Tau1 = adjusted_parameters(end)/SD_theta(end);
     Tau2 = adjusted_parameters(end-polynomial_degree_time)/SD_theta(end-polynomial_degree_time);
 
-    hasLicenseForToolbox = license('test', 'Statistics_Toolbox');
+    %hasLicenseForToolbox = license('test', 'Statistics_Toolbox');
+    hasLicenseForToolbox = 0;
+
 
     if hasLicenseForToolbox == 0 % if working without statistic toolbox
         if abs(Tau1) < students_inverse_approximate % 
@@ -1339,7 +1349,7 @@ function [output_function] = gradient_function(input_file, ...
 
     clear A AA C Q C_theta SD_theta_new
 
-    [ia,ib,ic] = intersect(dn,dn_final);
+    [~,ib,~] = intersect(dn,dn_final);
 
     % reprocessing without outliers 2
     % Jacobi matrix creation - first column
@@ -1442,7 +1452,7 @@ function [output_gravity_diff] = gravity_differences(input_file, ...
     end    
 
     % get unique points (string)
-    uniquepoints = string(unique(points,'stable'));
+    uniquepoints = unique(points, 'stable');
     pts_num = str2double(uniquepoints);
     for j = 1:length(uniquepoints)
         if isnan(pts_num(j)) == 1
@@ -1474,7 +1484,7 @@ function [output_gravity_diff] = gravity_differences(input_file, ...
     % Jacobi matrix, drift part
     A(:,k+1) = 1;
 
-    for i = k+2:k+1+polynomial_degree;
+    for i = k+2:k+1+polynomial_degree
        A(:,i) = (dn - dn(1)).^(i -(k+1));
     end
     % regularization - by default first column is removed to fix position 1
@@ -1533,7 +1543,9 @@ function [output_gravity_diff] = gravity_differences(input_file, ...
 
     % Check for statistic toolbox license
     hasLicenseForToolbox = license('test', 'Statistics_Toolbox');
+    hasLicenseForToolbox = 0;
 
+    
     if hasLicenseForToolbox == 0 % if working without statistic toolbox
         if abs(Tau) < students_inverse_approximate % approximate table values, for t-distrib. 
             polynomial_degree_new = 1; % drift approx. function set to linear
@@ -1687,46 +1699,74 @@ function [points,dtime,dn,YY,height,grav,ERR] = read_CG5(input_file, ...
     end
 end
 
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Read CG6 data _______________________________________________________________
 % height is measured from the point to the bottom of gravimeter, this has
 % to be revised in the future
+function [points, dtime, dn, YY, height, grav, ERR] = read_CG6(input_file, header_lines, calibration_factor)
 
-function [points,dtime,dn,YY,height,grav,ERR] = read_CG6(input_file, ...
-                                          header_lines, ...
-                                          calibration_factor)
-
-    % file reading
+    % Open file
     fileID = fopen(input_file);
-    % read data from file
-    filedata = textscan (fileID, '%s %d-%d-%d %d:%d:%d %f %f %s	%f %f %f %f	%f %f %f %f %f %f %f %f %f %f %s %s %s %f','Delimiter','\t' ,'headerLines', header_lines);
 
-    % point ID information
+    % Skip header lines
+    for i = 1:header_lines
+        fgetl(fileID);
+    end
+
+    % Read valid lines into a cell array
+    valid_lines = {};
+    while ~feof(fileID)
+        line = fgetl(fileID);
+        if isempty(line)
+            continue;
+        end
+        if contains(line, '******')
+            continue; % Skip corrupted lines
+        end
+        valid_lines{end+1} = line; %#ok<AGROW>
+    end
+
+    fclose(fileID);
+
+    % Join valid lines into one big char array separated by newlines
+    combined_data = strjoin(valid_lines, '\n');
+
+    % Define format spec
+    formatSpec = ['%s %s %s '...      % PointID, Date, Time
+                  '%f %f %f %f %f %f %f %f %f %f %f %f %f %f '... % Main numeric fields
+                  '%f %f %f '...      % Lat, Lon, Height
+                  '%s %s %s '...      % Often '--'
+                  '%f'];              % Final correction value
+
+    % Use textscan on cleaned data
+    filedata = textscan(combined_data, formatSpec, ...
+        'Delimiter', {'\t', ' '}, 'MultipleDelimsAsOne', true, ...
+        'TreatAsEmpty', {'--'});
+
+    % Extract outputs
     points = string(filedata{1});
-    
-    % time information - dtime (datetime) extracted from individual
-    % information in file
-    YY = filedata{2};
-    dtime = datetime(filedata{2},filedata{3},filedata{4},filedata{5},filedata{6},filedata{7});
+    date_str = filedata{2};
+    time_str = filedata{3};
 
-        % check if height units are correctly assigned, assuming gravimeter
-        % cannot be placed higher than 3 meters above ground. meters are
-        % switched to centimeters
-        if mean(filedata{21}) > 3
-            height = (filedata{21} + 6.58)/100;
-        elseif mean(filedata{21}) < 3
-            height = (filedata{21} + 0.0658);
-    end
+    % Combine and parse datetime
+    datetime_str = strcat(date_str, {' '}, time_str);
+    dtime = datetime(datetime_str, 'InputFormat', 'yyyy-MM-dd HH:mm:ss');
+    YY = year(dtime);
 
-    % Measured mGal units converted to μGal and calibrated using user
-    % provided factor, if empty the calibration factor is not used.
+    % Gravity (µGal)
     if isempty(calibration_factor)
-        grav = filedata{8}*1000;
+        grav = filedata{4} * 1000;
     else
-        grav = filedata{8}*1000*calibration_factor;
+        grav = filedata{4} * 1000 * calibration_factor;
     end
-    % load errors from filedata
-    ERR = filedata{11}*1000;
+
+    % Error
+    ERR = filedata{7} * 1000;
+
+    % Height
+    h_raw = filedata{17};
+    height = h_raw + 0.0658;
+
+    % datenum
     dn = datenum(dtime);
 end

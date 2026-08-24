@@ -1768,62 +1768,75 @@ function [points,dtime,dn,YY,height,grav,ERR] = read_CG5(input_file, ...
                                           calibration_factor, ...
                                           SD_scale_information, ...
                                           input_units_option)
-    % file reading
+
+    % Open file
     fileID = fopen(input_file);
-    % read data from file
-    filedata = textscan (fileID, '%f %s %f %f %f %f %f %f %f %f %f %9s %f %f %f %s', 'headerLines', header_lines);
-
-    % point ID information
+    % Read data
+    filedata = textscan(fileID, ...
+        '%f %s %f %f %f %f %f %f %f %f %f %s %f %f %s', ...
+        'headerLines', header_lines, ...
+        'Delimiter', ' ', ...
+        'MultipleDelimsAsOne', true);
+    fclose(fileID);
+    % Point ID information
     points = string(filedata{2});
-
-    % NOTE: CG5 has a "weird" time information storing - the following
-    % steps are used to get a datetime from 
-
-    % datetime numeric information for each measurement - dn (datenum)
-    dn = filedata{13};
-    % time information - dtime (datetime) extracted from individual
-    % information in file
-    YY = filedata{15};
-    dtime_t = datetime(dn,'ConvertFrom','datenum');
-    MM = month(dtime_t); dd = day(dtime_t); hh = hour(dtime_t); mm = minute(dtime_t); ss = second(dtime_t);
-    dtime = datetime(YY,MM,dd,hh,mm,ss);
+    % -------------------------------------------------------------------------
+    % -------------------------------------------------------------------------
+    % TIME INFORMATION
+    % -------------------------------------------------------------------------
     
-    % height above surface (mark) - converted to metres. For CG5 the sensor
-    % is located 21.1 cm below the top according to manual. The height in
-    % the spreadsheet is usually a height difference between top of the
-    % gravimeter and ground mark at individual position
+    % CG5:
+    % column 12 = time, e.g. 16:10:23
+    % column 13 = original CG5 datenum -> DO NOT USE
+    % column 15 = date, e.g. 2023/06/19
+    
+    date_str = string(filedata{15});
+    time_str = string(filedata{12});
+    
+    % Combine date and time
+    datetime_str = date_str + " " + time_str;
+    
+    % Create MATLAB datetime
+    dtime = datetime(datetime_str, ...
+                     'InputFormat', 'yyyy/MM/dd HH:mm:ss');
+    
+    % Year
+    YY = year(dtime);
+    
+    % Calculate datenum directly from the correct datetime
+    dn = datenum(dtime);
+    % -------------------------------------------------------------------------
+    % HEIGHT
+    % -------------------------------------------------------------------------
+    % CG5 sensor is located 21.1 cm below the top of the gravimeter.
 
     if input_units_option == 1
-        height = (filedata{3} - 21.1)/100;
+        height = (filedata{3} - 21.1) / 100;
     elseif input_units_option == 2
-        height = (filedata{3} - 0.211);
-        % check if height units are correctly assigned, assuming gravimeter
-        % cannot be placed higher than 3 meters above ground. meters are
-        % switched to centimeters
-        if mean(height) > 3
-            height = (filedata{3} - 21.1)/100;
+        height = filedata{3} - 0.211;
+
+        % Check if units were actually centimeters
+        if mean(height, 'omitnan') > 3
+            height = (filedata{3} - 21.1) / 100;
         end
     end
-    % Measured mGal units converted to μGal and calibrated using user
-    % provided factor, if empty the calibration factor is not used.
+    % -------------------------------------------------------------------------
+    % GRAVITY
+    % -------------------------------------------------------------------------
     if isempty(calibration_factor)
-        grav = filedata{4}*1000;
+        grav = filedata{4} * 1000;
     else
-        grav = filedata{4}*1000*calibration_factor;
+        grav = filedata{4} * 1000 * calibration_factor;
     end
-    % load errors from filedata
-    ERR = filedata{5}*1000;
-    % when scaled to series the values usually
-    % resemble the value of uncertainty (usually 2 to 7 μGal)
+    % -------------------------------------------------------------------------
+    % ERROR
+    % -------------------------------------------------------------------------
+    ERR = filedata{5} * 1000;
+    % Standard deviation scaling
     if SD_scale_information == 0
         ERR = ERR;
-    
-    % Standard deviation scaling
-    % when scaled to seconds, the values usually
-    % resemble the value of 1Hz freq uncertainty (usually more than 15
-    % μGal) thus having to be rescaled to seconds.
     elseif SD_scale_information == 1
-        ERR = ERR/sqrt(60);
+        ERR = ERR / sqrt(60);
     end
 end
 

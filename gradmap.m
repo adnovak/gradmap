@@ -22,7 +22,7 @@
 
 function gradmap(GUI_par, ...               % variables used to switch between command line and GUI use. When calling function from command line use 'Run'. [string]
     ...
-    input_units_option, ...                 % specifies height unit that operator used during measurements '1' for centimetres and '2' for metres [double]. User should store height measured to the upper edge of the instrument to correctly assign 
+    input_units_option, ...                 % specifies height unit that operator used during measurements '1' for centimetres and '2' for metres [double]. User should store height measured to the upper edge of the instrument CG5 and bottom edge for CG6
     ...                                 
     instrument_type,...                     %specifies which instrument was used to use appropriate reading of data: current options are 'CG5' or 'CG6' [string]
     ...
@@ -175,7 +175,6 @@ function gradmap(GUI_par, ...               % variables used to switch between c
             'Locpanel','FontName','Georgia','FontSize',fs+1.5);
 
         % text part
-
         % number of measured positions
         uicontrol(M,'Units','normalized', 'Position',[leftboundary+0.02 0.575 0.52 windowsize5],...
                      'backgroundcolor',[R1 G1 B1],...
@@ -282,27 +281,40 @@ function gradmap(GUI_par, ...               % variables used to switch between c
                          'Style','Text','string','store processing figures',...
                          'FontName','Trebuchet MS','FontSize',fs);
 
+            % fixovanie rozsahu osi v grafoch - natvrdo sa definuje +-100
+            % rozsah
+            uicontrol(M,'Units','normalized', 'Position',[leftboundary+0.53 0.15 0.25 windowsize6],...
+                         'backgroundcolor',[R1 G1 B1],...
+                         'Style','Text','string','fix y-axis',...
+                         'FontName','Trebuchet MS','FontSize',fs);
+
             % text for saving summary of all calculations in an excel table 
             uicontrol(M,'Units','normalized', 'Position',[leftboundary+0.02 0.108 0.38 windowsize6],...
                          'backgroundcolor',[R1 G1 B1],...
                          'Style','Text','string','save summary in table',...
                          'FontName','Trebuchet MS','FontSize',fs);
 
-            % text for saving gravity differences instead of gradient for
-            % all calculations
+            % text for saving gravity differences instead of gradient
             uicontrol(M,'Units','normalized', 'Position',[leftboundary+0.02 0.07 0.53 windowsize5],...
                          'backgroundcolor',[R1 G1 B1],...
                          'Style','Text','string','save gravity differences instead',...
                          'FontName','Trebuchet MS','FontSize',fs);
 
             % button for saving graphic output
-            uicontrol(M,'Units','normalized', 'Position',[leftboundary+0.77 0.155 0.09 windowsize7],...
+            uicontrol(M,'Units','normalized', 'Position',[leftboundary+0.48 0.152 0.09 windowsize7],...
                         'BackgroundColor',[R1 G1 B1],...
                         'Style','Checkbox','tag','check_graphics',...
                         'string','','value',0);
             
+            % button for locking extent of y axis to +- 100
+            uicontrol(M,'Units','normalized', 'Position',[leftboundary+0.78 0.152 0.09 windowsize7],...
+                        'BackgroundColor',[R1 G1 B1],...
+                        'Style','Checkbox','tag','check_graphics_extent',...
+                        'string','','value',0);
+
+
             % Button for saving a summary (table) of all calculated values
-            uicontrol(M,'Units','normalized', 'Position',[leftboundary+0.77 0.112 0.09 windowsize7],...
+            uicontrol(M,'Units','normalized', 'Position',[leftboundary+0.78 0.11 0.09 windowsize7],...
                         'BackgroundColor',[R1 G1 B1],...
                         'Style','Checkbox','tag','check_summary',...
                         'string','','value',1);
@@ -310,7 +322,7 @@ function gradmap(GUI_par, ...               % variables used to switch between c
             % button for saving gravity differences instead of gradient for
             % all calculations
 
-            uicontrol(M,'Units','normalized', 'Position',[leftboundary+0.77 0.07 0.09 windowsize7],...
+            uicontrol(M,'Units','normalized', 'Position',[leftboundary+0.78 0.07 0.09 windowsize7],...
                         'BackgroundColor',[R1 G1 B1],...
                         'Style','Checkbox','tag','check_gravity_dif',...
                         'string','','value',0,'Callback',@processing_callback);
@@ -343,6 +355,15 @@ function gradmap(GUI_par, ...               % variables used to switch between c
                     for i = 1:nfiles
                         data(i,:) = string(fullfile(data_path,data_filename{i}));
                     end
+                    
+                    % for multiple files processed at the same time reset
+                    % reference point and value - is the reference point in
+                    % all measurements?
+                    if nfiles > 1
+                        reference_point = [];
+                        reference_value = [];
+                    end
+
                     % write local data filenames when more than one file
                     % is selected
                     show_files = [data_filename{1} ', ' data_filename{2}, ', ...'];
@@ -425,8 +446,23 @@ function gradmap(GUI_par, ...               % variables used to switch between c
 
                     % get significance level from GUI
                     significance = get(findobj('tag','significance_tag'),'value');
-                    reference_point = get(findobj('tag','ref_point'),'value');
-                    reference_value = get(findobj('tag','ref_value'),'value');
+                    reference_point = get(findobj('Tag', 'ref_point'), 'String');
+                    reference_value = get(findobj('Tag', 'ref_value'), 'String');
+                    output_gravity_units = get(findobj('tag','output_units'),'value');
+
+                    if output_gravity_units == 1
+                        output_gravity_units_text = 'μGal';
+                        gravity_multiplier = 1;
+                        format = '%.1f';
+                    elseif output_gravity_units == 2
+                        output_gravity_units_text = 'mGal';
+                        gravity_multiplier = 0.001;
+                        format = '%.4f';
+                    else
+                        output_gravity_units_text = 'nm/s²';
+                        gravity_multiplier = 10;
+                        format = '%.0f';
+                    end
 
                     % get calibration factor from GUI
                     calibration_factor = str2double(get(findobj('tag','calibration'),'string'));
@@ -436,13 +472,14 @@ function gradmap(GUI_par, ...               % variables used to switch between c
 
                     % get report file path
                     report_file = get(findobj('tag','push_report_file_name'),'userdata');
-                    % get plot errors option
+                    % get plot errors option button
                     plot_errors_option = get(findobj('tag','check_graphics'),'value');
+                    % get plot errors extent button value
+                    plot_errors_extent = get(findobj('tag','check_graphics_extent'),'value');
                     % get summary option
                     summary_option = get(findobj('tag','check_summary'),'value');
                     % get save gravity difference options
                     store_gravity_dif = get(findobj('tag','check_gravity_dif'),'value');
-
 
                     % - workaround. measured levels is number value in pop
                     % up window, number of measured levels is exact number,
@@ -476,7 +513,25 @@ function gradmap(GUI_par, ...               % variables used to switch between c
                     significance = significance_level;
                     rejection_threshold = rejection_threshold;
                     gradient_output_format = gradient_output_format;
-                    
+                    reference_point = reference_point;
+                    reference_value = reference_value;
+                    output_gravity_units = output_gravity_units;
+
+                    if output_gravity_units == 1
+                        output_gravity_units_text = 'μGal';
+                        gravity_multiplier = 1;
+                        format = '%.1f';
+                    elseif output_gravity_units == 2
+                        output_gravity_units_text = 'mGal';
+                        gravity_multiplier = 0.001;
+                        format = '%.4f';
+                    else
+                        output_gravity_units_text = 'nm/s²';
+                        gravity_multiplier = 10;
+                        format = '%.0f';
+                    end
+
+
                     switch gradient_output_format
                         case 'linear'
                         gradient_format = 1;
@@ -490,7 +545,6 @@ function gradmap(GUI_par, ...               % variables used to switch between c
                     summary_option = summary_option;
                     store_gravity_dif = store_gravity_dif;
                 end
-
                 
 %_______________Calculations start____________________%
                 if isempty(report_file);
@@ -528,10 +582,11 @@ function gradmap(GUI_par, ...               % variables used to switch between c
                                 if overguard == 1
                                     report_file = strcat(report_file,'_output');
                                 end
-    
+
                                 if gradient_format == 1
                                     % call output_linear function
                                     output = gradient_linear(input_file,header_lines,instrument_type,calibration_factor,SD_scale_information,number_of_measured_levels,input_units_option,significance,SD00);
+                                    
                                     % compose report for each processed file
                                     % empty line at the start each
                                     % processing report
@@ -541,7 +596,7 @@ function gradmap(GUI_par, ...               % variables used to switch between c
                                     report(4,i) = strcat("measurement date: ",output.stationinfo.measurement_date);
         
                                     % check for accepted or rejected status
-                                    if str2num(output.gradient.std) > rejection_threshold
+                                    if output.gradient.std_num*gravity_multiplier > rejection_threshold*gravity_multiplier
                                         report(5,i) = "status: rejected";
                                     else
                                         report(5,i) = "status: accepted";
@@ -549,19 +604,22 @@ function gradmap(GUI_par, ...               % variables used to switch between c
                                     
                                     report(6,i) = strcat("number of measurements accepted: ",num2str(output.processing.number_of_measurements,'%.0f'));
                                     report(7,i) = strcat("number of outliers: ",num2str(output.processing.number_of_rejected_measurements,'%.0f'));
-                                    report(8,i) = strcat("root mean square error: ",num2str(output.processing.RMSE,'%.1f'));
+                                    report(8,i) = strcat("root mean square error ",output_gravity_units_text,": ",num2str(output.processing.RMSE*gravity_multiplier,format));
                                     report(9,i) = strcat("drift polynomial degree: ",pad(num2str(output.drift.polynomial_degree,'%1.0f'),10));
-                                    report(10,i) = "average height, gradient, standard deviation";
-                                    report(11,i)= strcat(output.gradient.average_height,",",output.gradient.average_gradient,",",output.gradient.std);
-    
+                                    report(10,i) = strcat("average height [m],", "gradient",output_gravity_units_text,", standard deviation ");
+                                    report(11,i) = sprintf(['%.3f, ', format, ', ', format], ...
+                                                        output.gradient.average_height_num, ...
+                                                        output.gradient.average_gradient_num * gravity_multiplier, ...
+                                                        output.gradient.std_num * gravity_multiplier);
+
                                     % count rejected files
-                                    if output.gradient.std > rejection_threshold
+                                    if output.gradient.std_num*gravity_multiplier > rejection_threshold*gravity_multiplier
                                         rejected_files = rejected_files +1;
-                                    end
-    
+                                    end                                   
+
                                     % store summary data
                                     stationID = [string(stationID); string(output.stationinfo.ID)];
-                                    sumdata = [output.gradient.average_gradient_num output.gradient.std_num];
+                                    sumdata = [output.gradient.average_gradient_num*gravity_multiplier output.gradient.std_num*gravity_multiplier];
                                     storedata = [storedata; sumdata];
 
                                     if plot_errors_option == 1
@@ -587,13 +645,13 @@ function gradmap(GUI_par, ...               % variables used to switch between c
                                         end
                                         hold on
                                         
-                                        plot(output.time.all_measurements, output.drift.drift_all_measurements, '--', 'color','black', 'LineWidth', 0.9);
+                                        plot(output.time.all_measurements, output.drift.drift_all_measurements*gravity_multiplier, '--', 'color','black', 'LineWidth', 0.9);
                                         title(ax, sprintf('Measured station code: %s', string(output.stationinfo.ID)));
-                                        scatter(output.time.all_measurements, output.processing.errors_all, 10, 'b', 'filled');
-                                        scatter(output.time.outliers, output.processing.errors_outliers, 10, 'r', 'filled');
-                                        hAdj = plot(output.time.no_outliers, output.drift.drift_no_outliers, 'color', 'black', 'LineWidth', 1);
+                                        scatter(output.time.all_measurements, output.processing.errors_all*gravity_multiplier, 10, 'b', 'filled');
+                                        scatter(output.time.outliers, output.processing.errors_outliers*gravity_multiplier, 10, 'r', 'filled');
+                                        hAdj = plot(output.time.no_outliers, output.drift.drift_no_outliers*gravity_multiplier, 'color', 'black', 'LineWidth', 1);
                                         
-                                        ylabel('\muGal')
+                                        ylabel(output_gravity_units_text)
                                         xlabel('time')
                                         set(gca, 'YGrid', 'on', 'XGrid', 'off')
                                         
@@ -608,6 +666,7 @@ function gradmap(GUI_par, ...               % variables used to switch between c
                                         else
                                             eq_text = 'y(t) = (unsupported degree)';
                                         end
+
                                         % ---- Compose legend entries, embedding eq_text into adjusted-drift label ----
                                         leg_entries = { ...
                                             'approximate drift', ...
@@ -663,6 +722,11 @@ function gradmap(GUI_par, ...               % variables used to switch between c
                                         catch
                                         end
                                         set(F, 'Renderer', 'painters');
+
+                                        if plot_errors_extent == 1
+                                            ylim([-100*gravity_multiplier 100*gravity_multiplier])
+                                        end
+
                                         print(F,strcat(report_file(1:end),"_",num2str(i,'%2.0f')),'-djpeg','-r400')
                                         
                                     end
@@ -674,13 +738,14 @@ function gradmap(GUI_par, ...               % variables used to switch between c
                                     % compose report for each processed file
                                     % empty line at the start each
                                     % processing report
+
                                     report(1,i) = "";
                                     report(2,i) = strcat("processed file: ",output.stationinfo.filename);
                                     report(3,i) = strcat("point ID: ",output.stationinfo.ID);
                                     report(4,i) = strcat("measurement date: ",output.stationinfo.measurement_date);
 
                                     % check for accepted or rejected status
-                                    if output.gradient.std(1) > rejection_threshold
+                                    if output.gradient.std(1)*gravity_multiplier > rejection_threshold*gravity_multiplier
                                         report(5,i) = "status: rejected";
 
                                     elseif output.processing.number_of_rejected_measurements > 0.5*output.processing.number_of_measurements
@@ -691,40 +756,47 @@ function gradmap(GUI_par, ...               % variables used to switch between c
                                     
                                     report(6,i) = strcat("number of measurements accepted: ",num2str(output.processing.number_of_measurements,'%.0f'));
                                     report(7,i) = strcat("number of outliers: ",num2str(output.processing.number_of_rejected_measurements,'%.0f'));
-                                    report(8,i) = strcat("root mean square error: ",num2str(output.processing.RMSE,'%2.1f'));
+                                    report(8,i) = strcat("root mean square error ",output_gravity_units_text,": ",num2str(output.processing.RMSE*gravity_multiplier,'%.1f'));
                                     report(9,i) = strcat("drift polynomial degree: ",output.drift.polynomial_degree);
                                     report(10,i) = strcat("gradient polynomial degree: ",output.gradient.polynomial_degree);
-                                    report(11,i) = "gradient parameters";
-                                    report(12,i) = string(strjoin(arrayfun(@(x) num2str(x),output.gradient.gradient_param ,'UniformOutput',false),','));
-                                    report(13,i) = "standard deviation ";
-                                    report(14,i) = string(strjoin(arrayfun(@(x) num2str(x),output.gradient.std ,'UniformOutput',false),','));
-                                    report(15,i) = strcat("covariance:",string(output.gradient.cov));
+                                    report(11,i) = strcat("gradient parameters",output_gravity_units_text,"/m");
+                                    report(12,i) = string(strjoin(arrayfun(@(x) num2str(x),output.gradient.gradient_param*gravity_multiplier,'UniformOutput',false),','));
+                                    report(13,i) = string("standard deviation ",output_gravity_units_text,"/m");
+                                    report(14,i) = string(strjoin(arrayfun(@(x) num2str(x),output.gradient.std*gravity_multiplier,'UniformOutput',false),','));
+                                    report(15,i) = strcat("covariance:",string(output.gradient.cov*gravity_multiplier));
     
+
                                     % % store summary data
                                     stationID = [string(stationID); string(output.stationinfo.ID)];
-                                    sumdata = [output.gradient.gradient_param' output.gradient.std' output.gradient.cov];
+                                    sumdata = [output.gradient.gradient_param*gravity_multiplier' output.gradient.std*gravity_multiplier' output.gradient.cov*gravity_multiplier];
                                     storedata = [storedata; sumdata];
 
                                     % plot errors compared to approximate and
                                     % adjusted drift
                                     if plot_errors_option == 1
+
                                         F = figure;
                                         hold on
-                                        plot(output.time.all_measurements,output.drift.drift_all_measurements,'--','color','black','LineWidth',0.9);
-                                        scatter(output.time.all_measurements,output.processing.errors_all,10,'r','filled');
-                                        scatter(output.time.no_outliers,output.processing.outliers_removed,10,'b','filled');
+                                        plot(output.time.all_measurements,output.drift.drift_all_measurements*gravity_multiplier,'--','color','black','LineWidth',0.9);
+                                        scatter(output.time.all_measurements,output.processing.errors_all*gravity_multiplier,10,'r','filled');
+                                        scatter(output.time.no_outliers,output.processing.outliers_removed*gravity_multiplier,10,'b','filled');
                                         
-                                        plot(output.time.no_outliers,output.drift.drift_no_outliers,'color','black','LineWidth',1);
+                                        plot(output.time.no_outliers,output.drift.drift_no_outliers*gravity_multiplier,'color','black','LineWidth',1);
                                         set(gca, 'YGrid', 'on', 'XGrid', 'off');
-                                        ylabel('\muGal')
+
+                                        ylabel(output_gravity_units_text)
                                         xlabel('time')
                                         legend('approximate drift','outliers','accepted measurements','adjusted drift','Location','best')
-                                       
+                                        
+                                        if plot_errors_extent == 1
+                                            ylim([-100*gravity_multiplier 100*gravity_multiplier])
+                                        end
+
                                         print(F,strcat(report_file(1:end),"_",num2str(i,'%2.0f')),'-djpeg','-r400')
                                     end
     
                                     % count rejected files
-                                    if output.gradient.std(1) > rejection_threshold
+                                    if output.gradient.std(1)*gravity_multiplier > rejection_threshold*gravity_multiplier
                                         rejected_files = rejected_files +1;
                                     end
                                 end
@@ -733,10 +805,10 @@ function gradmap(GUI_par, ...               % variables used to switch between c
     
                         % summary header
                         headerline(1,1) = "Summary";
-                        headerline(2,1) = strcat("number of processed files: ",num2str(nfiles,'%2.0f'));
-                        headerline(3,1) = strcat("number of files passing the rejection threshold:", num2str(rejected_files,'%2.0f'));
+                        headerline(2,1) = strcat("number of processed files: ",num2str(nfiles,'%.0f'));
+                        headerline(3,1) = strcat("number of files exceeding the rejection threshold: ", num2str(rejected_files,'%.0f'));
                         headerline(4,1) = strcat("calibration factor used: ", num2str(calibration_factor,'%8.7f'));
-                        headerline(5,1) = strcat("instrument uncertainty used: ", num2str(SD00,'%2.0f'));
+                        headerline(5,1) = strcat("instrument used: ",instrument_type);
                         headerline(6,1) = strcat("computation performed on: ", string(datetime("today")));
                         if significance == 1 
                             confidence = '68%';
@@ -746,13 +818,12 @@ function gradmap(GUI_par, ...               % variables used to switch between c
                             confidence ='99.7%';
                         end
                         headerline(7,1) = strcat("confidence: ", confidence);
-    
                         if gradient_format == 1
                             headerline(8,1) = strcat("processing method: linear");
-                            headerline(9,1)= "gradient units: μGal/m";
+                            headerline(9,1)= strcat("gradient units: ",output_gravity_units_text,"/m");
                         elseif gradient_format == 2
                             headerline(8,1) = strcat("processing method: function AH + BH²");
-                            headerline(9,1)= "Parameter units: A[μGal/m], B[μGal/m²]";
+                            headerline(9,1)= strcat("Parameter units: A[",output_gravity_units_text,"/m]","B[",output_gravity_units_text,"/m²]");
                         end
                         headerline(10,1) = "End of summary";
     
@@ -786,8 +857,9 @@ function gradmap(GUI_par, ...               % variables used to switch between c
                             % save data into xlsx file
                             writetable(T,filename);
                         end
-                        
-% switch to standard gravity difference processing
+                      
+
+        % switch to standard gravity difference processing
                     elseif store_gravity_dif == 1
                         % check number of files
                         [nfiles,~] = size(input_files);
@@ -796,148 +868,206 @@ function gradmap(GUI_par, ...               % variables used to switch between c
                         if nfiles == 0
                             fprintf('input files are missing /n')
                         else
-                            % run through all the files and process them
-                            for i = 1:nfiles
-                                input_file = input_files(i,:);
-                                fprintf('Processing file %.0f/%.0f \nNamed: %s\n', i, nfiles, input_file);
-                                % prevents overrunning input file
-                                preserve = input_file(1:end-4);
-                                % compares input and output file name and returns 0 or 1;
-                                overguard = strcmp(preserve,report_file);
-                                % in case input and output file match, output sufix is
-                                % added to original filename to prevent
-                                % overwriting
-                                if overguard == 1
-                                    report_file = strcat(report_file,'_output');
-                                end
-                                % call function for gravity difference
-                                % computing
-                                output = gravity_differences(input_file,header_lines,instrument_type,calibration_factor,SD_scale_information,input_units_option,significance,SD00);
-                                report(1,i) = "";
-                                report(2,i) = strcat("processed file: ",output.stationinfo.filename);
-                                report(3,i) = strcat("measurement date: ",output.stationinfo.measurement_date);                                     
-                                report(4,i) = strcat("number of measurements accepted: ",num2str(output.processing.number_of_measurements - output.processing.rejected_measurements,'%.0f'));
-                                report(5,i) = strcat("number of outliers: ",num2str(output.processing.rejected_measurements,'%.0f'));
-                                report(6,i) = strcat("drift polynomial degree: ",output.drift.polynomial_degree);
-                                report(7,i) = strcat("root mean square error [μGal]: ",num2str(output.processing.RMSE,'%.1f'));
-                                report(8,i) = "####################################################################################";
-                                report(9,i) = "starting point, ending point, gravity difference [μGal], standard deviation [μGal]";
 
-                                mp = output.stationinfo.measuredpoints;
-                                gd = output.adjusted.differences;
-                                sd = output.adjusted.std;
-                             
+                        % initialize station ID variable to save
+                        % station IDs and storedata variable to change
+                        % within each iteration
+                        stationID = [];
+                        storedata = [];
 
-                                for zz = 1:length(mp)-1
-                                    report(9+zz,i) = strcat(mp(1),",",...
-                                        mp(zz+1),",",...
-                                        num2str(gd(zz),'%5.1f'),",", ...
-                                        num2str(sd(zz),'%5.1f'));
+                        % run through all the files and process them
+                        for i = 1:nfiles
+                            input_file = input_files(i,:);
+                            fprintf('Processing file %.0f/%.0f \nNamed: %s\n', i, nfiles, input_file);
+                            % prevents overrunning input file
+                            preserve = input_file(1:end-4);
+                            % compares input and output file name and returns 0 or 1;
+                            overguard = strcmp(preserve,report_file);
+                            % in case input and output file match, output sufix is
+                            % added to original filename to prevent
+                            % overwriting
+                            if overguard == 1
+                                report_file = strcat(report_file,'_output');
+                            end
+                            % call function for gravity difference
+                            % computing
+                            output = gravity_differences(input_file,header_lines,instrument_type,calibration_factor,SD_scale_information,input_units_option,significance,reference_point,SD00);
+                            
+                            report(1,i) = "";
+                            report(2,i) = strcat("processed file: ",output.stationinfo.filename);
+                            report(3,i) = strcat("measurement date: ",output.stationinfo.measurement_date);                                     
+                            report(4,i) = strcat("number of measurements accepted: ",num2str(output.processing.number_of_measurements - output.processing.rejected_measurements,'%.0f'));
+                            report(5,i) = strcat("number of outliers: ",num2str(output.processing.rejected_measurements,'%.0f'));
+                            report(6,i) = strcat("drift polynomial degree: ",output.drift.polynomial_degree);
+                            report(7,i) = strcat("root mean square error", output_gravity_units_text,": ",num2str(output.processing.RMSE*gravity_multiplier,'%.1f'));
+
+                            og = output.stationinfo.ID;
+                            mp = output.stationinfo.measuredpoints;
+                            gd = output.adjusted.differences*gravity_multiplier;
+                            sd = output.adjusted.std*gravity_multiplier;
+
+                           % if reference value is not provided,
+                           % continue with graivty differences
+                            if isempty(reference_value)
+
+                                reference_value = [];
+                                report(8,i) = strcat("reference point: ", reference_point," gravity:");
+                                report(9,i) = "####################################################################################";
+                                report(10,i) = strcat("starting point, ending point, gravity difference [", output_gravity_units_text, "], standard deviation [",output_gravity_units_text,"]");
+
+                                for zz = 1:length(mp)
+                                    report(10+zz,i) = strcat(og,", ",...
+                                        mp(zz),", ",...
+                                        num2str(gd(zz),format),", ", ...
+                                        num2str(sd(zz),format));
                                 end
                                 
-                                report(9+length(mp),i) = "####################################################################################";
+                                report(11+length(mp),i) = "####################################################################################";
 
-                                % plot errors compared to approximate and
-                                % adjusted drift
-                                if plot_errors_option == 1
-                                    F = figure;
-                                    ax = axes(F);
-                                    cla(ax,'reset');
-                                    % clear figure every time
-                                    F.Position(3) = F.Position(3) * 1.10;   % width ×1.10
-                                    F.Position(4) = F.Position(4) * 1.40;   % height ×1.30
-                                    hold(ax,'on');
-                                    % ---- Ensure top stays below upper 15% of screen ----
-                                    screen = get(0, 'ScreenSize');
-                                    screen_height = screen(4);
-                                    top_limit = screen_height * 0.85;   % keep below top 15%
-                                    bottom = F.Position(2);
-                                    height = F.Position(4);
-                                    top_of_figure = bottom + height;
-                                    
-                                    % If too tall, push figure downward
-                                    if top_of_figure > top_limit
-                                        F.Position(2) = top_limit - height;
+                            % if reference value is provided, switch to
+                            % full gravity values
+                            elseif ~isempty(reference_value)
+                                reference_value_num = str2double(reference_value);
+                                report(8,i) = strcat("reference point: ", reference_point," gravity: ", reference_value, "[",output_gravity_units_text,"]");
+                                report(9,i) = "####################################################################################";
+                                report(10,i) = strcat("measured point, gravity [", output_gravity_units_text, "], standard deviation [",output_gravity_units_text,"]");
+
+                                for zz = 1:length(mp)
+                                    report(10+zz,i) = strcat(mp(zz),", ",...
+                                        num2str(gd(zz)+reference_value_num,format),", ", ...
+                                        num2str(sd(zz),format));
+                                end
+                                
+                                report(11+length(mp),i) = "####################################################################################";
+
+                            else
+                                error('I hereby declare that I have no idea what is happening and am genuinely curious how you achieved this')
+                            end
+
+                            if isempty(reference_value)
+                                % Store summary data for all measured points
+                                stationID = [stationID; ...
+                                             repmat(string(og), length(mp), 1), string(mp)];
+                                storedata = [storedata; ...
+                                             gd(:), sd(:)];
+                            else
+                                % Store absolute gravity values
+                                stationID = [stationID; string(mp(:))];
+                            
+                                gravity_values = gd(:) + str2double(reference_value);
+                                storedata = [storedata; ...
+                                             gravity_values, sd(:)];
+                            end
+
+                            % plot errors compared to approximate and
+                            % adjusted drift
+
+                            if plot_errors_option == 1
+                                F = figure;
+                                ax = axes(F);
+                                cla(ax,'reset');
+                                % clear figure every time
+                                F.Position(3) = F.Position(3) * 1.10;   % width ×1.10
+                                F.Position(4) = F.Position(4) * 1.40;   % height ×1.30
+                                hold(ax,'on');
+                                % ---- Ensure top stays below upper 15% of screen ----
+                                screen = get(0, 'ScreenSize');
+                                screen_height = screen(4);
+                                top_limit = screen_height * 0.85;   % keep below top 15%
+                                bottom = F.Position(2);
+                                height = F.Position(4);
+                                top_of_figure = bottom + height;
+                                
+                                % If too tall, push figure downward
+                                if top_of_figure > top_limit
+                                    F.Position(2) = top_limit - height;
+                                end
+                                hold on
+
+                                plot(output.time.all_measurements,output.drift.drift_all_measurements*gravity_multiplier,'--','color','black','LineWidth',0.9);
+                                title(ax, sprintf('Measured station code: %s', string(output.stationinfo.ID)));
+                                scatter(output.time.all_measurements,output.processing.errors_all*gravity_multiplier,10,'b','filled');
+                                scatter(output.time.outliers,output.processing.errors_outliers*gravity_multiplier,10,'r','filled');
+                                hAdj = plot(output.time.no_outliers, output.drift.drift_no_outliers*gravity_multiplier, 'color', 'black', 'LineWidth', 1);
+                                ylabel(output_gravity_units_text)
+                                xlabel('time')
+
+                                % ---- Build dynamic equation text ----
+                                    params = output.drift.drift_parameters*gravity_multiplier;
+                                    if output.drift.polynomial_degree == 2
+                                        a = params(1); b = params(2); c = params(3);
+                                        eq_text = sprintf('y(t) = %.4f + %.4f t + %.4f t^{2}', a, b, c);
+                                    elseif output.drift.polynomial_degree == 1
+                                        a = params(1); b = params(2);
+                                        eq_text = sprintf('y(t) = %.4f + %.4f t', a, b);
+                                    else
+                                        eq_text = 'y(t) = (unsupported degree)';
                                     end
-                                    hold on
+                                    % ---- Compose legend entries, embedding eq_text into adjusted-drift label ----
+                                    leg_entries = { ...
+                                        'approximate drift', ...
+                                        'accepted measurements', ...
+                                        'outliers', ...
+                                        sprintf('adjusted drift \n%s', eq_text) ...
+                                    };
+                                    % Create legend below the axes, horizontal orientation
+                                    lgd = legend(leg_entries, 'Location', 'southoutside', 'Orientation', 'vertical', 'Box', 'on');
+                                    set(lgd,'Interpreter','tex');
+                                    try
+                                        % 1) Preferred: remove all interactions (HG2)
+                                        if isprop(lgd,'Interactions')
+                                            lgd.Interactions = [];   % disable interactive behaviors
+                                        end
+                                    catch
+                                        % ignore if not supported
+                                    end
+                                    try
+                                        % 2) Prevent clicks/picks on the legend (newer graphics)
+                                        if isprop(lgd,'PickableParts')
+                                            lgd.PickableParts = 'none';   % makes legend ignore mouse hits
+                                        end
+                                        if isprop(lgd,'HitTest')
+                                            lgd.HitTest = 'off';          % older option to ignore mouse
+                                        end
+                                    catch
+                                        % ignore if not supported
+                                    end
+                                    try
+                                        % 3) Remove context menu — no right-click menu appears
+                                        if isprop(lgd,'ContextMenu')
+                                            lgd.ContextMenu = []; 
+                                        end
+                                    catch
+                                        % ignore if not supported
+                                    end
+                                    try
+                                        % 4) Ensure the axes do not auto-adjust when legend moves
+                                        ax = lgd.PlotChildren(1).Parent; % safe attempt to get axes
+                                        if ~isempty(ax) && isprop(ax,'ActivePositionProperty')
+                                            ax.ActivePositionProperty = 'position';
+                                        end
+                                    catch
+                                        % ignore lookup failures
+                                    end
+                                    % OPTIONAL: also stop the legend from responding to clicks on individual items
+                                    % (useful if you previously used ItemHitFcn). Clear it if present:
+                                    try
+                                        if isprop(lgd,'ItemHitFcn')
+                                            lgd.ItemHitFcn = [];
+                                        end
+                                        
+                                    catch
+                                    end
+                                    set(F, 'Renderer', 'painters');
 
-                                    plot(output.time.all_measurements,output.drift.drift_all_measurements,'--','color','black','LineWidth',0.9);
-                                    title(ax, sprintf('Measured station code: %s', string(output.stationinfo.ID)));
-                                    scatter(output.time.all_measurements,output.processing.errors_all,10,'b','filled');
-                                    scatter(output.time.outliers,output.processing.errors_outliers,10,'r','filled');
-                                    hAdj = plot(output.time.no_outliers, output.drift.drift_no_outliers, 'color', 'black', 'LineWidth', 1);
-                                    ylabel('\muGal')
-                                    xlabel('time')
-        
- % ---- Build dynamic equation text ----
-                                        params = output.drift.drift_parameters;
-                                        if output.drift.polynomial_degree == 2
-                                            a = params(1); b = params(2); c = params(3);
-                                            eq_text = sprintf('y(t) = %.4f + %.4f t + %.4f t^{2}', a, b, c);
-                                        elseif output.drift.polynomial_degree == 1
-                                            a = params(1); b = params(2);
-                                            eq_text = sprintf('y(t) = %.4f + %.4f t', a, b);
-                                        else
-                                            eq_text = 'y(t) = (unsupported degree)';
-                                        end
-                                        % ---- Compose legend entries, embedding eq_text into adjusted-drift label ----
-                                        leg_entries = { ...
-                                            'approximate drift', ...
-                                            'accepted measurements', ...
-                                            'outliers', ...
-                                            sprintf('adjusted drift \n%s', eq_text) ...
-                                        };
-                                        % Create legend below the axes, horizontal orientation
-                                        lgd = legend(leg_entries, 'Location', 'southoutside', 'Orientation', 'vertical', 'Box', 'on');
-                                        set(lgd,'Interpreter','tex');
-                                        try
-                                            % 1) Preferred: remove all interactions (HG2)
-                                            if isprop(lgd,'Interactions')
-                                                lgd.Interactions = [];   % disable interactive behaviors
-                                            end
-                                        catch
-                                            % ignore if not supported
-                                        end
-                                        try
-                                            % 2) Prevent clicks/picks on the legend (newer graphics)
-                                            if isprop(lgd,'PickableParts')
-                                                lgd.PickableParts = 'none';   % makes legend ignore mouse hits
-                                            end
-                                            if isprop(lgd,'HitTest')
-                                                lgd.HitTest = 'off';          % older option to ignore mouse
-                                            end
-                                        catch
-                                            % ignore if not supported
-                                        end
-                                        try
-                                            % 3) Remove context menu — no right-click menu appears
-                                            if isprop(lgd,'ContextMenu')
-                                                lgd.ContextMenu = []; 
-                                            end
-                                        catch
-                                            % ignore if not supported
-                                        end
-                                        try
-                                            % 4) Ensure the axes do not auto-adjust when legend moves
-                                            ax = lgd.PlotChildren(1).Parent; % safe attempt to get axes
-                                            if ~isempty(ax) && isprop(ax,'ActivePositionProperty')
-                                                ax.ActivePositionProperty = 'position';
-                                            end
-                                        catch
-                                            % ignore lookup failures
-                                        end
-                                        % OPTIONAL: also stop the legend from responding to clicks on individual items
-                                        % (useful if you previously used ItemHitFcn). Clear it if present:
-                                        try
-                                            if isprop(lgd,'ItemHitFcn')
-                                                lgd.ItemHitFcn = [];
-                                            end
-                                        catch
-                                        end
-                                        set(F, 'Renderer', 'painters');
-                                        print(F,strcat(report_file(1:end),"_",num2str(i,'%2.0f')),'-djpeg','-r400')                
+                                    if plot_errors_extent == 1
 
+                                        ylim([-100*gravity_multiplier 100*gravity_multiplier])
 
+                                        % axis extent specified
+                                    end
+
+                                    print(F,strcat(report_file(1:end),"_",num2str(i,'%2.0f')),'-djpeg','-r400')                
                                 end
                             end
                         end
@@ -946,8 +1076,9 @@ function gradmap(GUI_par, ...               % variables used to switch between c
                         headerline(1,1) = "Summary";
                         headerline(2,1) = strcat("number of processed files: ",num2str(nfiles,'%.0f'));
                         headerline(3,1) = strcat("computation performed on: ", string(datetime("today")));
-                        headerline(4,1) = strcat("calibration factor used in μGal: ", num2str(calibration_factor,'%8.7f'));
-                        headerline(5,1) = strcat("instrument uncertainty used: ", num2str(SD00,'%2.0f'));
+                        headerline(4,1) = strcat("calibration factor: ", num2str(calibration_factor,'%8.7f'));
+                        headerline(5,1) = strcat("instrument used: ",instrument_type);
+                        headerline(6,1) = strcat("instrument uncertainty used in μGal: ", num2str(SD00,'%2.0f'));
                         if significance == 1 
                             confidence = '68%';
                         elseif significance == 2 
@@ -956,8 +1087,8 @@ function gradmap(GUI_par, ...               % variables used to switch between c
                             confidence ='99.7%';
                         end
                         
-                        headerline(6,1) = strcat("confidence: ", confidence);
-                        headerline(7,1) = "End of summary";
+                        headerline(7,1) = strcat("confidence: ", confidence);
+                        headerline(8,1) = "End of summary";
     
                         % reshape header
                         report = reshape(report,[],1);
@@ -968,6 +1099,37 @@ function gradmap(GUI_par, ...               % variables used to switch between c
                         fprintf(fid,'%s\n',headerline);
                         fprintf(fid,'%s\n',report);
                         fclose(fid);
+
+                        if summary_option == 1
+                            filename = strcat(report_file,'_summary.xlsx');
+
+                            if isempty(reference_value)
+                                T = table(stationID(:,1), ...
+                                          stationID(:,2), ...
+                                          storedata(:,1), ...
+                                          storedata(:,2));
+                            
+                                T.Properties.VariableNames = { ...
+                                    'Reference station', ...
+                                    'Station ID', ...
+                                    'Gravity difference', ...
+                                    'Gravity SD'};
+                            
+                            else
+                                T = table(stationID, ...
+                                          storedata(:,1), ...
+                                          storedata(:,2));
+                                
+                                T.Properties.VariableNames = { ...
+                                    'Station ID', ...
+                                    'Gravity', ...
+                                    'Gravity SD'};
+                            end
+
+                            % save data into xlsx file
+                           writetable(T,filename);
+                       end
+
                     % end for store_ gravity_dif    
                     end
                 end
@@ -976,7 +1138,6 @@ function gradmap(GUI_par, ...               % variables used to switch between c
             case 'Close'
                close all
         end
-        
     end
 end
 % End of Main Function
@@ -1016,10 +1177,12 @@ function instrument_callback(hObject, ~)
         % Enable and reset the "SD scaling" and "height units" controls
         set(SD_scaling, 'Enable', 'on', 'BackgroundColor', 'white');
         set(units_option, 'Enable', 'on', 'BackgroundColor', 'white');
-        set(edit_pocet_riadkov, 'Enable', 'on', 'BackgroundColor', 'white');       
+        set(edit_pocet_riadkov, 'Enable', 'on', 'BackgroundColor', 'white');
+        set(edit_pocet_riadkov, 'String', '34');
     end
 
 end
+
 
 % Callback for gradient method used
 function gradient_method_callback(hObject, ~)
@@ -1045,6 +1208,7 @@ function gradient_method_callback(hObject, ~)
     end
 
 end
+
 
 % Callback for standard gravity data processing - turning off gradient
 % option
@@ -1100,9 +1264,6 @@ function processing_callback(hObject, ~)
 
     end
 end
-
-
-
 
 % Linear gradient _______________________________________________________________
 function [output_linear] = gradient_linear(input_file, ...
@@ -1368,7 +1529,6 @@ function [output_linear] = gradient_linear(input_file, ...
             % average gradients
             av_Wzz = mean(Wzz);
 
-
             % standard deviation 
             SD_Wzz(1)=sqrt((SD_theta(2)/(level_height(4)-level_height(3)))^2);
             SD_Wzz(2)=sqrt((SD_theta(1)/(level_height(3)-level_height(2)))^2);
@@ -1401,14 +1561,10 @@ function [output_linear] = gradient_linear(input_file, ...
     output_linear.processing.RMSE = rmse2*SD00;
 
     output_linear.drift.polynomial_degree = polynomial_degree_new;
-    output_linear.drift.drift_all_measurements = res_drift - res_drift_av;
-    output_linear.drift.drift_no_outliers = res_drift_new- res_drift_new_av;
-    output_linear.drift.drift_parameters = adjusted_parameters_new(end-(polynomial_degree_new):end);
-
-    output_linear.gradient.average_height = num2str(av_height,'%5.3f');
-    output_linear.gradient.average_gradient = num2str(av_Wzz,'%4.1f');
-    output_linear.gradient.std = num2str(sigma_av_Wzz,'%2.1f');
-
+    output_linear.drift.drift_all_measurements = (res_drift - res_drift_av);
+    output_linear.drift.drift_no_outliers = (res_drift_new- res_drift_new_av);
+    output_linear.drift.drift_parameters = (adjusted_parameters_new(end-(polynomial_degree_new):end));
+    
     % numeric
     output_linear.gradient.average_height_num = av_height;
     output_linear.gradient.average_gradient_num = av_Wzz;
@@ -1740,6 +1896,7 @@ function [output_function] = gradient_function(input_file, ...
     output_function.gradient.cov = covariance_parameter;
 end
 
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Gravity differences _______________________________________________________________
 function [output_gravity_diff] = gravity_differences(input_file, ...
@@ -1749,40 +1906,33 @@ function [output_gravity_diff] = gravity_differences(input_file, ...
                                                      SD_scale_information, ...
                                                      input_units_option, ...
                                                      significance,...
+                                                     reference_point,...
                                                      SD00)
+
     % file reading
     if instrument_type == 'CG5'
         [points,dtime,dn,YY,height,grav,ERR] = read_CG5(input_file,header_lines,calibration_factor,SD_scale_information,input_units_option);
     elseif instrument_type == 'CG6'
         [points,dtime,dn,YY,height,grav,ERR] = read_CG6(input_file,header_lines,calibration_factor);
-    end    
+    end
 
     % get unique points (string)
-    uniquepoints = unique(points, 'stable');
-    pts_num = str2double(uniquepoints);
-    for j = 1:length(uniquepoints)
-        if isnan(pts_num(j)) == 1
-            measured_points(j,1) =uniquepoints(j);
-
-        elseif isnan(pts_num(j)) == 0
-            measured_points(j,1) = string(num2str(pts_num(j),'%8.2f'));
-        end
-    end
+    uniquepoints_original = unique(points, 'stable');
 
     % reducing measured values to a point using normal gradient
     grav = grav + height*(308.6);
     % Least Square Adjustment - deterministic model
     n0 = length(points); % number of measurements taken
-    k = length(uniquepoints); % number of measured levels
+    k = length(uniquepoints_original); % number of measured levels
     
     % drift polynomial degree - initially, quadratic polynomial is
     % considered, however later testing can prove quadratic component to
     % be unsignificant and withdrawn from the adjusting process
     polynomial_degree = 2;
-    
+
     % Jacobi matrix, point section
     for i = 1:k
-    ind = find(points == uniquepoints(i));
+    ind = find(points == uniquepoints_original(i));
         A(ind,i) = 1; A(~ind,i) = 0;
         % average height for individual measured levels
     end
@@ -1793,9 +1943,26 @@ function [output_gravity_diff] = gravity_differences(input_file, ...
     for i = k+2:k+1+polynomial_degree
        A(:,i) = (dn - dn(1)).^(i -(k+1));
     end
-    % regularization - by default first column is removed to fix position 1
-    % as starting
-    A(:,1)= [];
+
+    % Normalize reference point input
+    if isempty(strtrim(reference_point))
+        % No reference point specified -> use first measured point
+        id_ref_point = 1;
+    else
+        % Use the reference point exactly as entered
+        id_ref_point = find(uniquepoints_original == strtrim(reference_point), 1);
+    
+        if isempty(id_ref_point)
+            fprintf('Reference point "%s" was not found among the measured points. Defeulting to first measured point', ...
+                  reference_point);
+            id_ref_point = 1;
+        end
+    end
+
+
+    % Remove reference point from adjustment
+    A(:,id_ref_point) = [];
+
     % weights
     weight = mean(ERR)./ERR;
     % weight matrix
@@ -1850,8 +2017,7 @@ function [output_gravity_diff] = gravity_differences(input_file, ...
     % Check for statistic toolbox license
     hasLicenseForToolbox = license('test', 'Statistics_Toolbox');
     hasLicenseForToolbox = 0;
-
-    
+   
     if hasLicenseForToolbox == 0 % if working without statistic toolbox
         if abs(Tau) < students_inverse_approximate % approximate table values, for t-distrib. 
             polynomial_degree_new = 1; % drift approx. function set to linear
@@ -1869,6 +2035,9 @@ function [output_gravity_diff] = gravity_differences(input_file, ...
             polynomial_degree_new = 2; % drift approx. function remains quadratic
         end
     end
+    
+    clear A AA C Q v C_theta
+    
     % removing outliers 
     grav(index_outliers) = [];
     dn(index_outliers) = [];
@@ -1876,11 +2045,20 @@ function [output_gravity_diff] = gravity_differences(input_file, ...
     ERR(index_outliers) = [];
     YY(index_outliers) = [];
     
+    uniquepoints_new = unique(points, 'stable');
+    missing_points = setdiff(uniquepoints_original, uniquepoints_new);
+    
+    if ~isempty(missing_points)
+        fprintf('One or more points were not measured properly and are not included in final processing:\n');
+        disp(missing_points);
+    end
+
     n = length(points);
-    clear A AA C Q v C_theta
+    k = length(uniquepoints_new);
+
     % reprocessing without outliers
     for i = 1:k
-    ind = find(points == uniquepoints(i));
+    ind = find(points == uniquepoints_new(i));
         A(ind,i) = 1; A(~ind,i) = 0;
     end
     % the not so useful part of Jacobi's matrix
@@ -1888,9 +2066,36 @@ function [output_gravity_diff] = gravity_differences(input_file, ...
     for i = k+2:k+1+polynomial_degree_new
        A(:,i) = (dn - dn(1)).^(i -(k+1));
     end
+
+    % Find reference point again after outlier removal
+    if isempty(strtrim(reference_point))
+        % No reference point specified -> use first measured point
+        id_ref_point_new = 1;
+    else
+        % Use the reference point exactly as entered
+        id_ref_point_new = find(uniquepoints_new == strtrim(reference_point), 1);
     
-    % Jacobi Matrix new
-    A(:,1)=[];
+        if isempty(id_ref_point_new) && ~isempty(strtrim(reference_point))
+            fprintf('Reference point "%s" was not found among the measured points. Defeulting to first measured point', ...
+                  reference_point);
+            id_ref_point_new = 1;
+        end
+    end
+
+
+    % Find reference point again after outlier removal
+    id_ref_point_new = find(uniquepoints_new == strtrim(reference_point), 1);
+
+    if isempty(id_ref_point_new) && ~isempty(reference_point)
+        id_ref_point_new = 1;
+        fprintf('Reference point was completely removed during outlier rejection.\n');
+    else
+        id_ref_point_new = 1;
+        
+    end
+
+    % Remove the same reference point from the adjustment
+    A(:,id_ref_point_new) = [];
     
     % New weighing 
     weight= mean(ERR)./ERR;
@@ -1905,23 +2110,26 @@ function [output_gravity_diff] = gravity_differences(input_file, ...
     rmse2 = sqrt((v'*inv(C)*v)/(n-k-2-polynomial_degree_new-1));           
     C_theta = (rmse2^2)*inv(A'*inv(C)*A);                   
     SD_theta_new = sqrt(diag(C_theta));
-    
+
     drift_koef2 = adjusted_parameters_new(end-polynomial_degree_new:end);
     AA = A(:,end-polynomial_degree_new:end);
     % new drift
     res_drift_new = AA*drift_koef2;
     res_drift_new_av = mean(res_drift_new);
 
+    ref_point = uniquepoints_new(id_ref_point);
+    uniquepoints_new(id_ref_point) = [];
+    gravity_diff = adjusted_parameters_new(1:end-(polynomial_degree_new+1));
+
     % time information - dtime (datetime)
     dtime_t_new = datetime(dn,'ConvertFrom','datenum');
     MM = month(dtime_t_new); DD = day(dtime_t_new); hh = hour(dtime_t_new); mm = minute(dtime_t_new); ss = second(dtime_t_new);
     dtime_new = datetime(YY,MM,DD,hh,mm,ss);
     
-
-    output_gravity_diff.stationinfo.ID = uniquepoints(1);
+    output_gravity_diff.stationinfo.ID = ref_point;
     output_gravity_diff.stationinfo.filename = pad(input_file,100);
     output_gravity_diff.stationinfo.measurement_date = char(dtime_new(1));
-    output_gravity_diff.stationinfo.measuredpoints = measured_points;
+    output_gravity_diff.stationinfo.measuredpoints = uniquepoints_new; 
 
     output_gravity_diff.time.all_measurements = dtime;
     output_gravity_diff.time.no_outliers = dtime_new;
@@ -1937,10 +2145,10 @@ function [output_gravity_diff] = gravity_differences(input_file, ...
     output_gravity_diff.drift.drift_all_measurements = res_drift - res_drift_av;
     output_gravity_diff.drift.drift_no_outliers = res_drift_new- res_drift_new_av;
     output_gravity_diff.drift.drift_parameters = adjusted_parameters_new(end-(polynomial_degree_new):end);
-
-    output_gravity_diff.adjusted.differences = adjusted_parameters_new(1:end-(polynomial_degree_new+1));
-    output_gravity_diff.adjusted.std = SD_theta_new(1:end-(polynomial_degree_new+1));
     
+    output_gravity_diff.adjusted.differences = gravity_diff;
+    output_gravity_diff.adjusted.std = SD_theta_new(1:end-(polynomial_degree_new+1));
+
 end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -1961,16 +2169,15 @@ function [points,dtime,dn,YY,height,grav,ERR] = read_CG5(input_file, ...
         'MultipleDelimsAsOne', true);
     fclose(fileID);
     % Point ID information
-    points = string(filedata{2});
+
+    points_num = str2double(filedata{2});
+    points = string(num2str(points_num, '%.3f'));
+    points = regexprep(points, '\.0+$', '');
+
     % -------------------------------------------------------------------------
     % -------------------------------------------------------------------------
     % TIME INFORMATION
     % -------------------------------------------------------------------------
-    
-    % CG5:
-    % column 12 = time, e.g. 16:10:23
-    % column 13 = original CG5 datenum -> DO NOT USE
-    % column 15 = date, e.g. 2023/06/19
     
     date_str = string(filedata{15});
     time_str = string(filedata{12});
@@ -2022,7 +2229,6 @@ function [points,dtime,dn,YY,height,grav,ERR] = read_CG5(input_file, ...
     end
 end
 
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Read CG6 data _______________________________________________________________
 % height is measured from the point to the bottom of gravimeter, this has
@@ -2067,8 +2273,11 @@ function [points, dtime, dn, YY, height, grav, ERR] = read_CG6(input_file, heade
         'Delimiter', {'\t', ' '}, 'MultipleDelimsAsOne', true, ...
         'TreatAsEmpty', {'--'});
 
-    % Extract outputs
+    % Extract outputs - point numbering 
     points = string(filedata{1});
+    points = strrep(string(points), '_', '.');
+    points = regexprep(points, '\.0+$', '');
+
     date_str = filedata{2};
     time_str = filedata{3};
 
@@ -2086,10 +2295,13 @@ function [points, dtime, dn, YY, height, grav, ERR] = read_CG6(input_file, heade
 
     % Error
     ERR = filedata{7} * 1000;
-
+    
     % Height
-    h_raw = filedata{17};
+    h_raw = filedata{17}/100;
     height = h_raw + 0.0658;
+    
+    %% careful this is a temporary workaround.
+    height = height - 0.215;
 
     % datenum
     dn = datenum(dtime);

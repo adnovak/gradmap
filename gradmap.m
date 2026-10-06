@@ -24,21 +24,23 @@ function gradmap(GUI_par, ...               % variables used to switch between c
     ...
     input_units_option, ...                 % specifies height unit that operator used during measurements '1' for centimetres and '2' for metres [double]. User should store height measured to the upper edge of the instrument CG5 and bottom edge for CG6
     ...                                 
-    instrument_type,...                     %specifies which instrument was used to use appropriate reading of data: current options are 'CG5' or 'CG6' [string]
+    instrument_type,...                     % specifies which instrument was used to use appropriate reading of data: current options are 'CG5' or 'CG6' [string]
     ...
     header_lines, ...                       % number of headerlines in file to skip [double]
     ...
     SD_scale_information,...                % information whether Standard Deviation is scaled to 1 second or 1 minute measurement. Values more than 0.15 - 0.2 might indicate, SD is provides accuracy of 1s measurement. '0' for standard deviation scaled to minute measurement and '1' for 1 second scaled standard deviation [double].
     ...
-    input_files, ...                        % path to input file(s) (fullfile) [string] in case of multiple files use ['D:/.../file1'; 'D:/.../file2'; etc ].
+    input_files,...                         % path to input file(s) (fullfile) [string] in case of multiple files use ['D:/.../file1'; 'D:/.../file2'; etc ].
+    ...
+    measured_position_CG6,...               % if instrument_type selected is set to CG6, user should provide 1 is for front edge on the top of gravimeter, 2 is for back edge on the top of CG6 gravimeter. Change this depending on where the height is related to during measurement. Note, leaving this unchanged or blank will leave to incorrect height assigned for gradient value, however it will not affect estimated gravity difference and gradient value.
     ... 
     uncertainty,...                         % instrument standard deviation e.g. 1 microGal [double], This is to be decided by gravimeter operator.
     ...
     calibration_factor,...                  % enables user to provide calibration factor and scale gravity gradient - usually determined during gravity calibration on gravity baseline, when left blank or set to '1.0' (calibration_factor = []), algorithm will use original GCAL1 from protocol. [double]
+    ... 
+    rejection_threshold,...                 % threshold for rejecting solution in microGals per metre [double]. 
     ...
-    rejection_threshold,  ...               % threshold for rejecting solution in microGals per metre [double]. 
-    ...
-    number_of_measured_levels, ...          % number of measured position (levels) [double]. Use '1' for two measured levels, '2' for three measured levels and '3' to let the algorithm decide. Option '3' however assumes that each measured point has always correctly assigned ID (no typo has occured). 
+    number_of_measured_levels,...           % number of measured position (levels) [double]. Use '1' for two measured levels, '2' for three measured levels and '3' to let the algorithm decide. Option '3' however assumes that each measured point has always correctly assigned ID (no typo has occured). 
     ...
     significance_level,...                  % significance level or statistical significance determines the result of statistic tests performed within the processing. Recommended to check three sigma rule. Set to '1' for 1-sigma (68% probability), '2' for 2-sigma (95% probability) and '3' for 3-sigma (99% probability) for correctly identifying outliers and performing statistic tests.
     ...
@@ -54,7 +56,9 @@ function gradmap(GUI_par, ...               % variables used to switch between c
     ...
     store_gravity_dif,...                   % option to store gravity differences and their standard deviations intead of gradient, choosing this option '1' will disable gradient format and number of measured positions since this doesn't affect standard processing. '0' for no, '1' for yes [double]
     ...
-    plot_errors_option, ...                 % option to plot graphics for each processed station '0' for no and '1' for yes [double]
+    plot_errors_option,...                  % option to plot graphics for each processed station '0' for no and '1' for yes [double]
+    ...
+    plot_errors_extent,...                  % 0 to keep default y-axis extent, 1 for fixed +-100 microGal extent
     ...
     summary_option)                         % store summary in excel file , '0' for no, '1' for yes [double]. excel file will be created in same folder as report file with a name "processing_summary".
 
@@ -160,7 +164,7 @@ function gradmap(GUI_par, ...               % variables used to switch between c
             % measured position window
             uicontrol(M,'Units','normalized','position',[leftboundary+0.45 0.745 0.15 0.055],...
                         'Style','Popupmenu','tag','jalajala','Visible','off',...
-                        'string','top - front |bottom','value',1,'BackgroundColor','white','FontName','Trebuchet MS','FontSize',fs-0.5);
+                        'string','top - front | top - back |bottom','value',1,'BackgroundColor','white','FontName','Trebuchet MS','FontSize',fs-0.5);
 
             % Standard deviation scaling text
             uicontrol(M,'Units','normalized', 'Position',[leftboundary+0.02 0.665 0.42 windowsize5],...
@@ -514,6 +518,12 @@ function gradmap(GUI_par, ...               % variables used to switch between c
                     instrument_type = instrument_type;
                     header_lines = header_lines;
                     input_units_option = input_units_option;
+                    measured_position_CG6 = measured_position_CG6;
+                    
+                    if ~ismember(measured_position_CG6, [1 2 3])
+                        measured_position_CG6 = 1;
+                    end
+
                     SD00 = uncertainty;
                     SD_scale_information = SD_scale_information;
                     number_of_measured_levels = number_of_measured_levels;
@@ -537,7 +547,6 @@ function gradmap(GUI_par, ...               % variables used to switch between c
                         gravity_multiplier = 10;
                         format = '%.0f';
                     end
-
 
                     switch gradient_output_format
                         case 'linear'
@@ -593,7 +602,7 @@ function gradmap(GUI_par, ...               % variables used to switch between c
 
                                 if gradient_format == 1
                                     % call output_linear function
-                                    output = gradient_linear(input_file,header_lines,instrument_type,calibration_factor,SD_scale_information,number_of_measured_levels,input_units_option,significance,SD00);
+                                    output = gradient_linear(input_file,header_lines,instrument_type,measured_position_CG6,calibration_factor,SD_scale_information,number_of_measured_levels,input_units_option,significance,SD00);
                                     
                                     % compose report for each processed file
                                     % empty line at the start each
@@ -742,7 +751,7 @@ function gradmap(GUI_par, ...               % variables used to switch between c
                                 elseif gradient_format == 2
                                 
                                     % call processing function
-                                    output = gradient_function(input_file, header_lines,instrument_type, calibration_factor, SD_scale_information, input_units_option,significance,SD00);
+                                    output = gradient_function(input_file, header_lines, instrument_type, measured_position_CG6, calibration_factor, SD_scale_information, input_units_option,significance,SD00);
                                     % compose report for each processed file
                                     % empty line at the start each
                                     % processing report
@@ -785,9 +794,9 @@ function gradmap(GUI_par, ...               % variables used to switch between c
 
                                         F = figure;
                                         hold on
-                                        plot(output.time.all_measurements,output.drift.drift_all_measurements*gravity_multiplier ,'--','color','black','LineWidth',0.9);
-                                        scatter(output.time.all_measurements,output.processing.errors_all*gravity_multiplier ,10,'r','filled');
-                                        scatter(output.time.no_outliers,output.processing.outliers_removed*gravity_multiplier ,10,'b','filled');
+                                        plot(output.time.all_measurements,output.drift.drift_all_measurements*gravity_multiplier,'--','color','black','LineWidth',0.9);
+                                        scatter(output.time.all_measurements,output.processing.errors_all*gravity_multiplier,10,'r','filled');
+                                        scatter(output.time.no_outliers,output.processing.outliers_removed*gravity_multiplier,10,'b','filled');
                                         
                                         plot(output.time.no_outliers,output.drift.drift_no_outliers*gravity_multiplier,'color','black','LineWidth',1);
                                         set(gca, 'YGrid', 'on', 'XGrid', 'off');
@@ -899,7 +908,7 @@ function gradmap(GUI_par, ...               % variables used to switch between c
                             end
                             % call function for gravity difference
                             % computing
-                            output = gravity_differences(input_file,header_lines,instrument_type,calibration_factor,SD_scale_information,input_units_option,significance,reference_point,SD00);
+                            output = gravity_differences(input_file,header_lines,instrument_type, measured_position_CG6, calibration_factor,SD_scale_information,input_units_option,significance,reference_point,SD00);
                             
                             report(1,i) = "";
                             report(2,i) = strcat("processed file: ",output.stationinfo.filename);
@@ -1293,6 +1302,7 @@ end
 function [output_linear] = gradient_linear(input_file, ...
                                            header_lines, ...
                                            instrument_type, ...
+                                           measured_position_CG6, ...
                                            calibration_factor, ...
                                            SD_scale_information, ...
                                            number_of_measured_levels, ...
@@ -1304,7 +1314,7 @@ function [output_linear] = gradient_linear(input_file, ...
     if instrument_type == 'CG5'
         [points,dtime,dn,YY,height,grav,ERR] = read_CG5(input_file,header_lines,calibration_factor,SD_scale_information,input_units_option);
     elseif instrument_type == 'CG6'
-        [points,dtime,dn,YY,height,grav,ERR] = read_CG6(input_file,header_lines,calibration_factor);
+        [points,dtime,dn,YY,height,grav,ERR] = read_CG6(input_file,header_lines,calibration_factor,measured_position_CG6);
     end
 
     % get unique points (string)
@@ -1600,6 +1610,7 @@ end
 function [output_function] = gradient_function(input_file, ...
                                                header_lines, ...
                                                instrument_type, ...
+                                               measured_position_CG6, ...
                                                calibration_factor, ...
                                                SD_scale_information, ...
                                                input_units_option, ...
@@ -1607,9 +1618,9 @@ function [output_function] = gradient_function(input_file, ...
                                                SD00)
         % file reading
     if instrument_type == 'CG5'
-        [points,dtime,dn,YY,height,grav,ERR] = read_CG5(input_file,header_lines,calibration_factor,SD_scale_information,input_units_option);
+        [points,dtime,dn,YY,height,grav,ERR] = read_CG5(input_file, header_lines, calibration_factor, SD_scale_information, input_units_option);
     elseif instrument_type == 'CG6'
-        [points,dtime,dn,YY,height,grav,ERR] = read_CG6(input_file,header_lines,calibration_factor);
+        [points,dtime,dn,YY,height,grav,ERR] = read_CG6(input_file, header_lines, calibration_factor, measured_position_CG6);
     end    
 
     uniquepoints = unique(points, 'stable');
@@ -1926,6 +1937,7 @@ end
 function [output_gravity_diff] = gravity_differences(input_file, ...
                                                      header_lines, ...
                                                      instrument_type, ...
+                                                     measured_position_CG6, ...
                                                      calibration_factor, ...
                                                      SD_scale_information, ...
                                                      input_units_option, ...
@@ -1937,7 +1949,7 @@ function [output_gravity_diff] = gravity_differences(input_file, ...
     if instrument_type == 'CG5'
         [points,dtime,dn,YY,height,grav,ERR] = read_CG5(input_file,header_lines,calibration_factor,SD_scale_information,input_units_option);
     elseif instrument_type == 'CG6'
-        [points,dtime,dn,YY,height,grav,ERR] = read_CG6(input_file,header_lines,calibration_factor);
+        [points,dtime,dn,YY,height,grav,ERR] = read_CG6(input_file,header_lines,calibration_factor, measured_position_CG6);
     end
 
     % get unique points (string)
@@ -2257,7 +2269,7 @@ end
 % Read CG6 data _______________________________________________________________
 % height is measured from the point to the bottom of gravimeter, this has
 % to be revised in the future
-function [points, dtime, dn, YY, height, grav, ERR] = read_CG6(input_file, header_lines, calibration_factor)
+function [points, dtime, dn, YY, height, grav, ERR] = read_CG6(input_file, header_lines, calibration_factor, measured_position_CG6)
 
     % Open file
     fileID = fopen(input_file);
@@ -2309,7 +2321,7 @@ function [points, dtime, dn, YY, height, grav, ERR] = read_CG6(input_file, heade
     datetime_str = strcat(date_str, {' '}, time_str);
     dtime = datetime(datetime_str, 'InputFormat', 'yyyy-MM-dd HH:mm:ss');
     YY = year(dtime);
-
+    
     % Gravity (µGal)
     if isempty(calibration_factor)
         grav = filedata{4} * 1000;
@@ -2322,10 +2334,13 @@ function [points, dtime, dn, YY, height, grav, ERR] = read_CG6(input_file, heade
     
     % Height
     h_raw = filedata{17}/100;
-    height = h_raw + 0.06263;
-    
-    %% careful this is a temporary workaround.
-    height = height - 0.164;
+    if measured_position_CG6 == 1 % height measured to the front top edge of CG6
+        height = h_raw + 0.06263 - 0.164;
+    elseif measured_position_CG6 == 2 % height measured to the back top edge of CG6
+        height = h_raw + 0.06263 - 0.185;
+    elseif measured_position_CG6 == 3
+        height = h_raw + 0.06263; % height measured to the bottom edge of CG6
+    end
 
     % datenum
     dn = datenum(dtime);

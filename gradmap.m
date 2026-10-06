@@ -12,7 +12,7 @@
 % Second option treats gravity changes along vertical as a function of height and
 % time allowing gradient to be computed for any given height afterwards.
 % Several limiting factors are incorporated within the tool enabling
-% customization of the calculation process, such as number of measured
+% customization of the calculation process, such as number of measuredv  
 % levels (vertical positions), instrument accuracy, height units provided
 % by the user, standard deviation scaling and more.
 
@@ -156,7 +156,12 @@ function gradmap(GUI_par, ...               % variables used to switch between c
             uicontrol(M,'Units','normalized','position',[leftboundary+0.74 0.745 0.12 0.055],...
                         'Style','Popupmenu','tag','units_option',...
                         'string','cm|m','value',1,'BackgroundColor','white','FontName','Trebuchet MS','FontSize',fs-0.5);
-                        
+
+            % measured position window
+            uicontrol(M,'Units','normalized','position',[leftboundary+0.45 0.745 0.15 0.055],...
+                        'Style','Popupmenu','tag','jalajala','Visible','off',...
+                        'string','top - front |bottom','value',1,'BackgroundColor','white','FontName','Trebuchet MS','FontSize',fs-0.5);
+
             % Standard deviation scaling text
             uicontrol(M,'Units','normalized', 'Position',[leftboundary+0.02 0.665 0.42 windowsize5],...
                          'backgroundcolor',[R1 G1 B1],...
@@ -420,6 +425,8 @@ function gradmap(GUI_par, ...               % variables used to switch between c
                     header_lines = str2double(get(findobj('tag','edit_pocet_riadkov'),'string'));
                     % get input unit information from GUI
                     input_units_option = get(findobj('tag','units_option'),'value');
+                    % get information to where height was considered
+                    measured_position_CG6 = get(findobj('tag','jalajala'),'value');
                     % get instrument uncertainty from GUI
                     SD00 = str2double(get(findobj('tag','edit_unc'),'string'));
                     % get SD scaling information from GUI
@@ -546,6 +553,7 @@ function gradmap(GUI_par, ...               % variables used to switch between c
                     store_gravity_dif = store_gravity_dif;
                 end
                 
+
 %_______________Calculations start____________________%
                 if isempty(report_file);
                    fprintf('No file & directory set for the report file \n')
@@ -777,9 +785,9 @@ function gradmap(GUI_par, ...               % variables used to switch between c
 
                                         F = figure;
                                         hold on
-                                        plot(output.time.all_measurements,output.drift.drift_all_measurements*gravity_multiplier,'--','color','black','LineWidth',0.9);
-                                        scatter(output.time.all_measurements,output.processing.errors_all*gravity_multiplier,10,'r','filled');
-                                        scatter(output.time.no_outliers,output.processing.outliers_removed*gravity_multiplier,10,'b','filled');
+                                        plot(output.time.all_measurements,output.drift.drift_all_measurements*gravity_multiplier ,'--','color','black','LineWidth',0.9);
+                                        scatter(output.time.all_measurements,output.processing.errors_all*gravity_multiplier ,10,'r','filled');
+                                        scatter(output.time.no_outliers,output.processing.outliers_removed*gravity_multiplier ,10,'b','filled');
                                         
                                         plot(output.time.no_outliers,output.drift.drift_no_outliers*gravity_multiplier,'color','black','LineWidth',1);
                                         set(gca, 'YGrid', 'on', 'XGrid', 'off');
@@ -1164,6 +1172,10 @@ function instrument_callback(hObject, ~)
     SD_scaling = findobj('Tag', 'SD_scaling');
     units_option = findobj('Tag', 'units_option');
     edit_pocet_riadkov = findobj('Tag', 'edit_pocet_riadkov');
+    measured_position = findobj('Tag', 'jalajala');
+       
+
+
 
     % Check if "CG6" (second option) is selected
     if instrument_value == 2
@@ -1171,7 +1183,12 @@ function instrument_callback(hObject, ~)
         set(SD_scaling, 'Enable', 'off', 'BackgroundColor', [0.8 0.8 0.8]);
         set(units_option, 'Enable', 'off', 'BackgroundColor', [0.8 0.8 0.8]);
         set(edit_pocet_riadkov, 'String', '21');
-        % set(edit_pocet_riadkov, 'Enable', 'off', 'BackgroundColor', [0.8 0.8 0.8]);
+
+         % Show units option
+        set(measured_position, ...
+            'Visible', 'on', ...
+            'Enable', 'on', ...
+            'BackgroundColor', 'white');
         
     else
         % Enable and reset the "SD scaling" and "height units" controls
@@ -1179,7 +1196,14 @@ function instrument_callback(hObject, ~)
         set(units_option, 'Enable', 'on', 'BackgroundColor', 'white');
         set(edit_pocet_riadkov, 'Enable', 'on', 'BackgroundColor', 'white');
         set(edit_pocet_riadkov, 'String', '34');
+
+        % Hide units option
+        set(measured_position, 'Visible', 'off');
+
     end
+
+
+
 
 end
 
@@ -2298,10 +2322,10 @@ function [points, dtime, dn, YY, height, grav, ERR] = read_CG6(input_file, heade
     
     % Height
     h_raw = filedata{17}/100;
-    height = h_raw + 0.0658;
+    height = h_raw + 0.06263;
     
     %% careful this is a temporary workaround.
-    height = height - 0.215;
+    height = height - 0.164;
 
     % datenum
     dn = datenum(dtime);

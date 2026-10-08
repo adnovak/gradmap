@@ -164,7 +164,7 @@ function gradmap(GUI_par, ...               % variables used to switch between c
             % measured position window
             uicontrol(M,'Units','normalized','position',[leftboundary+0.45 0.745 0.15 0.055],...
                         'Style','Popupmenu','tag','jalajala','Visible','off',...
-                        'string','top - front | top - back |bottom','value',1,'BackgroundColor','white','FontName','Trebuchet MS','FontSize',fs-0.5);
+                        'string','top - front |top - back |bottom','value',1,'BackgroundColor','white','FontName','Trebuchet MS','FontSize',fs-0.5);
 
             % Standard deviation scaling text
             uicontrol(M,'Units','normalized', 'Position',[leftboundary+0.02 0.665 0.42 windowsize5],...
@@ -527,6 +527,11 @@ function gradmap(GUI_par, ...               % variables used to switch between c
                     SD00 = uncertainty;
                     SD_scale_information = SD_scale_information;
                     number_of_measured_levels = number_of_measured_levels;
+
+                    if ~ismember(number_of_measured_levels, [2 3 4 5])
+                        number_of_measured_levels = [];
+                    end
+
                     significance = significance_level;
                     rejection_threshold = rejection_threshold;
                     gradient_output_format = gradient_output_format;
@@ -558,6 +563,7 @@ function gradmap(GUI_par, ...               % variables used to switch between c
                     calibration_factor = calibration_factor;
                     report_file = report_file;
                     plot_errors_option = plot_errors_option;
+                    plot_errors_extent = plot_errors_extent;
                     summary_option = summary_option;
                     store_gravity_dif = store_gravity_dif;
                 end
@@ -567,7 +573,8 @@ function gradmap(GUI_par, ...               % variables used to switch between c
                 if isempty(report_file);
                    fprintf('No file & directory set for the report file \n')
                 else
-                % number of files selected by user
+                
+                    % number of files selected by user
                     if store_gravity_dif == 0
     
                         % check number of files
@@ -1183,9 +1190,6 @@ function instrument_callback(hObject, ~)
     edit_pocet_riadkov = findobj('Tag', 'edit_pocet_riadkov');
     measured_position = findobj('Tag', 'jalajala');
        
-
-
-
     % Check if "CG6" (second option) is selected
     if instrument_value == 2
         % Disable and darken the "SD scaling" and "height units" controls
@@ -1208,11 +1212,7 @@ function instrument_callback(hObject, ~)
 
         % Hide units option
         set(measured_position, 'Visible', 'off');
-
     end
-
-
-
 
 end
 
@@ -1989,7 +1989,7 @@ function [output_gravity_diff] = gravity_differences(input_file, ...
         id_ref_point = find(uniquepoints_original == strtrim(reference_point), 1);
     
         if isempty(id_ref_point)
-            fprintf('Reference point "%s" was not found among the measured points. Defeulting to first measured point', ...
+            fprintf('Reference point "%s" was not found among the measured points. Defaulting to first measured point', ...
                   reference_point);
             id_ref_point = 1;
         end
@@ -2337,7 +2337,7 @@ function [points, dtime, dn, YY, height, grav, ERR] = read_CG6(input_file, heade
     if measured_position_CG6 == 1 % height measured to the front top edge of CG6
         height = h_raw + 0.06263 - 0.164;
     elseif measured_position_CG6 == 2 % height measured to the back top edge of CG6
-        height = h_raw + 0.06263 - 0.185;
+        height = h_raw + 0.06263 - 0.204;
     elseif measured_position_CG6 == 3
         height = h_raw + 0.06263; % height measured to the bottom edge of CG6
     end

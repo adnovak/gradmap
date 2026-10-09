@@ -2204,11 +2204,18 @@ function [points,dtime,dn,YY,height,grav,ERR] = read_CG5(input_file, ...
         'Delimiter', ' ', ...
         'MultipleDelimsAsOne', true);
     fclose(fileID);
-    % Point ID information
 
-    points_num = str2double(filedata{2});
-    points = string(num2str(points_num, '%.3f'));
+    % Point ID information
+    points = string(filedata{2});
+    
+    % 1. Remove the decimal part if all decimal digits are zeros
     points = regexprep(points, '\.0+$', '');
+    
+    % 2. If the third decimal digit is zero, keep only two decimals
+    points = regexprep(points, '^(\d+\.\d{2})0.*$', '$1');
+    
+    % 3. Otherwise, keep exactly three decimal digits
+    points = regexprep(points, '^(\d+\.\d{3}).*$', '$1');
 
     % -------------------------------------------------------------------------
     % -------------------------------------------------------------------------

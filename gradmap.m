@@ -1336,11 +1336,35 @@ function [output_linear] = gradient_linear(input_file, ...
     polynomial_degree = 2;
     
     % Jacobi matrix, point section
+    height_threshold = 0.5;
+    
     for i = 1:k
-    ind = find(points == uniquepoints(i));
-        A(ind,i) = 1; A(~ind,i) = 0;
-        % average height for individual measured levels
+        ind = points == uniquepoints(i);
+    
+        A(ind,i) = 1;
+        A(~ind,i) = 0;
+    
+        % Average height for individual measured levels
         level_height(i,1) = mean(height(ind));
+    
+        % Check for different heights at the same point
+        height_range = max(height(ind)) - min(height(ind));
+    
+        if height_range >= height_threshold
+            warning(['Point %s has observations at different heights! ' ...
+                     'Height range: %.4f m (min: %.4f m, max: %.4f m).'], ...
+                     string(uniquepoints(i)), ...
+                     height_range, ...
+                     min(height(ind)), ...
+                     max(height(ind)));
+        end
+    
+        fprintf('Point: %s | Observations: %d | Mean height: %.4f | Min: %.4f | Max: %.4f\n', ...
+            string(uniquepoints(i)), ...
+            length(ind), ...
+            level_height(i,1), ...
+            min(height(ind)), ...
+            max(height(ind)));
     end
 
     % Jacobi matrix, drift part
